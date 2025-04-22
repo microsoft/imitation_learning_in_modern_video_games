@@ -38,7 +38,7 @@ dependencies = [
     "tensorboard==2.14.0",
     "timm==0.9.5",
     "torch==2.6.0",
-    "torchvision==0.20.1",
+    "torchvision==0.21.0",
     "h5py==3.9.0",
 ]
 
