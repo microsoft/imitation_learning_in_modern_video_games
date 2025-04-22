@@ -1,0 +1,85 @@
+seed: 42
+checkpoint: null
+resume_from: null
+
+log:
+  minimal_metrics: True
+  checkpoint_epoch_freq: 100
+  checkpoint_top_k_validation: 0
+  checkpoint_last: True
+  device_stats_monitor: True
+  weights: False
+  weights_step_freq: 100
+  weights_log_scalars: False
+
+trainer:
+  profiler: simple
+  max_steps: 500000
+  gradient_clip_algorithm: norm
+  gradient_clip_val: 1.0  # set to None to turn off gradient clipping
+  precision: 16-mixed
+
+data:
+  game: "csgo"
+  data_path: /home/t-luschaefer/game_datasets/csgo_aim_expert/
+  # data_path: /absolute/path/to/dataset # NEED TO BE FILLED
+  train_split_file_path: paper_data_split/csgo_train_files.txt
+  validation_split_file_path: null
+  test_split_file_path: null
+  image_height: 128
+  image_width: 128
+  framestacking: 1
+  num_actions: 15
+  num_joystick_actions: 4
+  num_trigger_actions: 1
+  num_button_actions: 10
+  discretise_joystick: False
+  discretise_joystick_bins:
+    - -1.0
+    - -0.845
+    - -0.575
+    - -0.325
+    - 0.0
+    - 0.325
+    - 0.575
+    - 0.845
+    - 1.0
+  batch_size: 32
+  sequence_length: 100
+  downsample: 2
+  prefetch_factor: 5
+  train_num_workers: 20
+  other_num_workers: 1
+  decord_num_workers: 3
+
+model:
+  encoder:
+    type: cnn
+    cnn_encoder_dim: 2
+    cnn_encoder_start_channels: 8
+    mlp_encoder_hidden_size: 128
+    mlp_encoder_num_layers: 3
+    vit_encoder_patch_size: 16
+    vit_encoder_dim: 512
+    vit_encoder_num_layers: 4
+    vit_encoder_num_heads: 12
+    vit_encoder_mlp_dim: 512
+    use_image_augmentation: False
+  pretrained_encoder: null
+  bc_policy:
+    type: mlp # 'mlp', 'lstm', or 'gpt'
+    hidden_size: 512
+    num_layers: 4
+    lstm_hidden_size: 512
+    lstm_num_layers: 2
+    gpt_num_layers: 4
+    gpt_num_heads: 8
+    gpt_embedding_dim: 512
+    gpt_use_positional_encoding: False
+    gpt_bias: True
+    gpt_is_causal: True
+  learning_rate: 3e-4
+  lr_warmup_steps: 0 # use no warmup
+  joystick_loss_weight: 1.0
+  button_loss_weight: 1.0
+  train_from_embeddings: False

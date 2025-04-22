@@ -1,0 +1,12 @@
+# This file may be used to create an environment using:
+# $ conda env create --name <env> --file <this file>
+# platform: linux-64
+name: bc_from_pixels
+channels:
+  - defaults
+dependencies:
+  - pip=24.2.0
+  - python=3.10.16
+  - ffmpeg
+  - pip:
+    - -r requirements.txt

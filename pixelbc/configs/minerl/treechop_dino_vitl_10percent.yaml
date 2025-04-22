@@ -1,0 +1,26 @@
+seed: 0
+
+trainer:
+  max_epochs: 100
+
+data:
+  image_height: 224
+  image_width: 224
+  train_split_file_path: paper_data_split/minerl_6.13_treechop_train_files_10percent.txt
+
+model:
+  encoder: null
+  pretrained_encoder:
+    family: dino
+    name: dinov2_vitl14
+  bc_policy:
+    type: lstm # 'mlp', 'lstm', or 'gpt'
+    hidden_size: 512
+    num_layers: 2
+    lstm_hidden_size: 512
+    lstm_num_layers: 2
+  learning_rate: 3e-4
+  lr_warmup_steps: 0 # use no warmup
+  joystick_loss_weight: 1.0
+  button_loss_weight: 1.0
+  train_from_embeddings: True

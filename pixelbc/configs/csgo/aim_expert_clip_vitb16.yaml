@@ -1,0 +1,23 @@
+seed: 0
+
+data:
+  image_height: 224
+  image_width: 224
+
+
+model:
+  encoder: null
+  pretrained_encoder:
+    family: clip
+    name: ViT-B/16
+  bc_policy:
+    type: lstm # 'mlp', 'lstm', or 'gpt'
+    hidden_size: 512
+    num_layers: 2
+    lstm_hidden_size: 512
+    lstm_num_layers: 2
+  learning_rate: 3e-4
+  lr_warmup_steps: 0 # use no warmup
+  joystick_loss_weight: 1.0
+  button_loss_weight: 1.0
+  train_from_embeddings: True
