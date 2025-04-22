@@ -21,7 +21,6 @@ trainer:
 
 data:
   game: "minerl"
-  # data_path: /home/t-luschaefer/game_datasets/minerl_treechop
   data_path: /absolute/path/to/dataset # NEED TO BE FILLED
   train_split_file_path: paper_data_split/minerl_6.13_treechop_train_files.txt
   validation_split_file_path: null
