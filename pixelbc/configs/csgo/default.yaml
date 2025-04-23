@@ -21,8 +21,7 @@ trainer:
 
 data:
   game: "csgo"
-  data_path: /home/t-luschaefer/game_datasets/csgo_aim_expert/
-  # data_path: /absolute/path/to/dataset # NEED TO BE FILLED
+  data_path: /absolute/path/to/dataset # NEED TO BE FILLED
   train_split_file_path: paper_data_split/csgo_train_files.txt
   validation_split_file_path: null
   test_split_file_path: null
