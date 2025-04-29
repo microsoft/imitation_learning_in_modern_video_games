@@ -4,6 +4,20 @@ The repository supports training and evaluating behaviour cloning (BC) agents in
 > [!NOTE]  
 > The data pipeline used within this repository has been modified for the open-source release of this codebase. Therefore, training runs using this codebase will not perfectly reproduce the results reported in the paper but we verified that performance of trained agents is comparable.
 
+# Citation
+If you use this code in your research, please cite the following paper:
+*Schäfer, Lukas, Logan Jones, Anssi Kanervisto, Yuhan Cao, Tabish Rashid, Raluca Georgescu, Dave Bignell, Siddhartha Sen, Andrea Treviño Gavito, and Sam Devlin. "Visual encoders for data-efficient imitation learning in modern video games." Adaptive and Learning Agents Workshop at AAMAS (2025).*
+
+In BibTeX format:
+```bibtex
+@inproceedings{schafer2025visual,
+  title={Visual encoders for data-efficient imitation learning in modern video games},
+  author={Sch{\"a}fer, Lukas and Jones, Logan and Kanervisto, Anssi and Cao, Yuhan and Rashid, Tabish and Georgescu, Raluca and Bignell, Dave and Sen, Siddhartha and Gavito, Andrea Trevi{\~n}o and Devlin, Sam},
+  booktitle={Adaptive and Learning Agents Workshop, AAMAS},
+  year={2025}
+}
+```
+
 # Installation
 We suggest to install the package in a [conda environment](https://www.anaconda.com/). To create a conda environment with the necessary dependencies, run
 ```bash
@@ -375,20 +389,6 @@ Grad-CAM visualisations look at the activations in particular parts of the visua
 
 ## Report Rollout Performance for Minecraft MineRL and CS:GO
 To report the performance of a rollout in Minecraft MineRL or CS:GO, we provide scripts which output performance metrics for each model which can be found in `pixelbc/plotting/csgo_report_results.py` and `pixelbc/plotting/minerl_plot_treechop.py`. For MineRL, we report the success ratios of chopping trees in rollouts, the average, standard deviation and error across success ratios per model and can conduct a t-test to evaluate significance of differences in success ratios between models. Similarly, for CS:GO we report the average, standard deviation and error across the kills-per-minute achieved per model.
-
-# Citation
-If you use this code in your research, please cite the following paper:
-*Schäfer, Lukas, Logan Jones, Anssi Kanervisto, Yuhan Cao, Tabish Rashid, Raluca Georgescu, Dave Bignell, Siddhartha Sen, Andrea Treviño Gavito, and Sam Devlin. "Visual encoders for data-efficient imitation learning in modern video games." Adaptive and Learning Agents Workshop at AAMAS (2025).*
-
-In BibTeX format:
-```bibtex
-@inproceedings{schafer2025visual,
-  title={Visual encoders for data-efficient imitation learning in modern video games},
-  author={Sch{\"a}fer, Lukas and Jones, Logan and Kanervisto, Anssi and Cao, Yuhan and Rashid, Tabish and Georgescu, Raluca and Bignell, Dave and Sen, Siddhartha and Gavito, Andrea Trevi{\~n}o and Devlin, Sam},
-  booktitle={Adaptive and Learning Agents Workshop, AAMAS},
-  year={2025}
-}
-```
 
 # Contributing
 
