@@ -7,7 +7,7 @@ black==24.3.0
 cchardet==2.1.7
 chardet==5.1.0
 decord==0.6.0
-diffusers==0.31.0
+diffusers==0.38.0
 einops==0.6.1
 ffmpegcv==0.2.8
 grad-cam==1.4.8
