@@ -67,7 +67,7 @@ def main(argv):
         callbacks=callbacks,
         logger=loggers,
         limit_val_batches=0.0 if not has_validation_data(config) else None,
-        strategy=pl.strategies.DDPStrategy(static_graph=False, timeout=datetime.timedelta(seconds=3600)),
+        strategy="auto",
     )
     trainer.fit(model=model, datamodule=dm, **config.fit if "fit" in config and config.fit is not None else {})
     # test model if test data is provided
