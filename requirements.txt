@@ -16,6 +16,9 @@ mss==9.0.1
 numpy==1.26.0
 omegaconf==2.3.0
 seaborn==0.12.2
-tensorboard==2.14.0
 timm==0.9.5
 h5py==3.9.0
+pywin32==306
+keyboard==0.13.5
+pymem
+tensorboard==2.21.0

@@ -78,36 +78,37 @@ class BCDataModule(pl.LightningDataModule):
         else:
             self.test_set = None
 
+    def _loader_kwargs(self, num_workers, pin_memory):
+        # persistent_workers/prefetch_factor are only valid with num_workers > 0.
+        # On Windows the dataset is already fully in RAM, so num_workers=0 (no
+        # spawn, no per-worker dataset copy) is both valid and fastest.
+        kwargs = dict(
+            batch_size=self.data_config.batch_size,
+            num_workers=num_workers,
+            pin_memory=pin_memory,
+        )
+        if num_workers > 0:
+            kwargs["persistent_workers"] = True
+            kwargs["prefetch_factor"] = self.data_config.prefetch_factor
+        return kwargs
+
     def train_dataloader(self):
-        # Disabling multiprocessing to avoid headaches
         return DataLoader(
             self.train_set,
-            batch_size=self.data_config.batch_size,
             shuffle=True,
-            num_workers=self.data_config.train_num_workers,
-            pin_memory=True,
-            persistent_workers=True,
-            prefetch_factor=self.data_config.prefetch_factor,
+            **self._loader_kwargs(self.data_config.train_num_workers, pin_memory=True),
         )
 
     def val_dataloader(self):
         return DataLoader(
             self.val_set,
-            batch_size=self.data_config.batch_size,
-            num_workers=self.data_config.other_num_workers,
-            persistent_workers=True,
-            pin_memory=False,
-            prefetch_factor=self.data_config.prefetch_factor,
+            **self._loader_kwargs(self.data_config.other_num_workers, pin_memory=False),
         )
 
     def test_dataloader(self):
         return DataLoader(
             self.test_set,
-            batch_size=self.data_config.batch_size,
-            num_workers=self.data_config.other_num_workers,
-            persistent_workers=True,
-            pin_memory=False,
-            prefetch_factor=self.data_config.prefetch_factor,
+            **self._loader_kwargs(self.data_config.other_num_workers, pin_memory=False),
         )
 
     def teardown(self, stage: str = None):
