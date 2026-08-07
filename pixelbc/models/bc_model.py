@@ -7,12 +7,13 @@ from torch.distributions import Bernoulli, Categorical
 
 from pixelbc.models.encoders import get_encoder
 from pixelbc.models.utils import get_model
-from pixelbc.models.utils.loss_utils import (compute_button_loss,
-                                             compute_joystick_loss,
-                                             compute_trigger_loss)
+from pixelbc.models.utils.loss_utils import compute_button_loss, compute_joystick_loss, compute_trigger_loss
 from pixelbc.models.utils.train_metrics import (
-    get_button_metrics, get_continuous_joystick_metrics,
-    get_discrete_joystick_metrics, get_trigger_metrics)
+    get_button_metrics,
+    get_continuous_joystick_metrics,
+    get_discrete_joystick_metrics,
+    get_trigger_metrics,
+)
 
 
 class BCModel(pl.LightningModule):
@@ -58,7 +59,9 @@ class BCModel(pl.LightningModule):
             assert self.lr_warmup_steps > 0, "GPT policy requires LR warmup to be enabled."
 
         if self.train_from_embeddings:
-            assert self.pretrained_encoder_config is not None, "Training from embeddings is only supported for pretrained encoders."
+            assert (
+                self.pretrained_encoder_config is not None
+            ), "Training from embeddings is only supported for pretrained encoders."
 
         # define encoder
         self.image_encoder = get_encoder(image_shape, encoder, pretrained_encoder)
@@ -88,7 +91,9 @@ class BCModel(pl.LightningModule):
         assert action_targets.shape[-1] == self.num_actions, "Number of targets does not match number of actions."
         action_targets = action_targets.reshape(-1, self.num_actions)
         joystick_targets = action_targets[:, : self.num_joystick_actions]
-        trigger_targets = action_targets[:, self.num_joystick_actions : self.num_joystick_actions + self.num_trigger_actions]
+        trigger_targets = action_targets[
+            :, self.num_joystick_actions : self.num_joystick_actions + self.num_trigger_actions
+        ]
         button_targets = action_targets[:, self.num_joystick_actions + self.num_trigger_actions :]
         return joystick_targets, trigger_targets, button_targets
 
@@ -110,7 +115,9 @@ class BCModel(pl.LightningModule):
 
         # extract trigger logits
         if self.num_trigger_actions > 0:
-            trigger_logits = action_logits[:, self.num_joystick_logits : self.num_joystick_logits + self.num_trigger_logits]
+            trigger_logits = action_logits[
+                :, self.num_joystick_logits : self.num_joystick_logits + self.num_trigger_logits
+            ]
         else:
             trigger_logits = None
 
@@ -207,7 +214,9 @@ class BCModel(pl.LightningModule):
             action_logits = self.bc_model(img_enc, rollout=True)
         else:
             # initialise model for sequence during training
-            assert img_enc.dim() == 3, f"Input to model must be of shape (batch_size, sequence_length, embedding_dim) but is {img_enc.shape}"
+            assert (
+                img_enc.dim() == 3
+            ), f"Input to model must be of shape (batch_size, sequence_length, embedding_dim) but is {img_enc.shape}"
             batch_size = img_enc.shape[0]
             self.bc_model.init_for_sequence(batch_size=batch_size)
             action_logits = self.bc_model(img_enc, rollout=False)
@@ -301,7 +310,9 @@ class BCModel(pl.LightningModule):
             return [optimiser], []
         else:
             # use linear LR warmup
-            lr_scheduler = torch.optim.lr_scheduler.LambdaLR(optimiser, lambda steps: min((steps + 1) / self.lr_warmup_steps, 1))
+            lr_scheduler = torch.optim.lr_scheduler.LambdaLR(
+                optimiser, lambda steps: min((steps + 1) / self.lr_warmup_steps, 1)
+            )
             return [optimiser], [{"scheduler": lr_scheduler, "interval": "step"}]
 
     def on_before_optimizer_step(self, optimizer):

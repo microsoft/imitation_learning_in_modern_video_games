@@ -10,8 +10,7 @@ import win32con
 import win32gui
 import win32ui
 
-from pixelbc.online_rollout.csgo_utils.config import (IS_CONTRAST,
-                                                      csgo_img_dimension)
+from pixelbc.online_rollout.csgo_utils.config import IS_CONTRAST, csgo_img_dimension
 
 
 def grab_window(hwin, game_resolution=(1024, 768), SHOW_IMAGE=False):

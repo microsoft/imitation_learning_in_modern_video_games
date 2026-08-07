@@ -30,8 +30,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from pixelbc.models.utils.model_utils import (MLP, BackboneModel,
-                                              verify_input_shape)
+from pixelbc.models.utils.model_utils import MLP, BackboneModel, verify_input_shape
 
 
 # @torch.jit.script # good to enable when not using torch.compile, disable when using (our default)
@@ -59,7 +58,9 @@ class SelfAttention(nn.Module):
     def __init__(self, embedding_dim, num_heads, bias=True, is_causal=True):
         super().__init__()
         assert hasattr(torch.nn.functional, "scaled_dot_product_attention"), "pytorch>=2.0.0 needed for Flash Attention"
-        assert embedding_dim % num_heads == 0, f"embedding dimension must be divisible by number of heads but are {embedding_dim} and {num_heads}"
+        assert (
+            embedding_dim % num_heads == 0
+        ), f"embedding dimension must be divisible by number of heads but are {embedding_dim} and {num_heads}"
         self.embedding_dim = embedding_dim
         self.num_heads = num_heads
         self.is_causal = is_causal
@@ -79,7 +80,9 @@ class SelfAttention(nn.Module):
 
         y = torch.nn.functional.scaled_dot_product_attention(q, k, v, attn_mask=None, is_causal=self.is_causal)
 
-        y = y.transpose(1, 2).contiguous().view(batch_size, token_len, n_embd)  # re-assemble all head outputs side by side
+        y = (
+            y.transpose(1, 2).contiguous().view(batch_size, token_len, n_embd)
+        )  # re-assemble all head outputs side by side
         y = self.c_proj(y)
         return y
 

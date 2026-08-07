@@ -7,8 +7,7 @@ import numpy as np
 import torch
 from omegaconf import OmegaConf
 
-from pixelbc.data.image_preprocessing import \
-    get_preprocessing_function_and_image_shape
+from pixelbc.data.image_preprocessing import get_preprocessing_function_and_image_shape
 from pixelbc.models.utils.model_utils import count_parameters
 from pixelbc.utils.load_checkpoint import load_checkpoint
 
@@ -53,7 +52,9 @@ class OnlineRollout:
         self.model.eval()
         print(self.model)
         trainable_params, total_params = count_parameters(self.model)
-        trainable_params_str = f"{trainable_params / 1e6:.1f}M" if trainable_params > 1e6 else f"{trainable_params / 1e3:.1f}K"
+        trainable_params_str = (
+            f"{trainable_params / 1e6:.1f}M" if trainable_params > 1e6 else f"{trainable_params / 1e3:.1f}K"
+        )
         total_params_str = f"{total_params / 1e6:.1f}M" if total_params > 1e6 else f"{total_params / 1e3:.1f}K"
         print(f"Model has {trainable_params_str} trainable parameters and {total_params_str} total parameters")
 
@@ -72,7 +73,9 @@ class OnlineRollout:
         if "num_button_actions" in self.hyperparameters:
             self.num_button_actions = self.hyperparameters.num_button_actions
         else:
-            self.num_button_actions = self.hyperparameters.num_actions - self.num_joystick_actions - self.num_trigger_actions
+            self.num_button_actions = (
+                self.hyperparameters.num_actions - self.num_joystick_actions - self.num_trigger_actions
+            )
 
         self.preprocessing_function, self.preprocessed_image_shape = get_preprocessing_function_and_image_shape(
             self.hyperparameters.encoder is None,

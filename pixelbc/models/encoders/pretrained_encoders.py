@@ -8,8 +8,11 @@ from diffusers import AutoencoderKL
 
 from pixelbc.models.encoders.encoders import ImageEncoder
 from pixelbc.models.utils.image_augmentations import (
-    clip_transform, dino_transform, focalnet_transform,
-    stablediffusion_transform)
+    clip_transform,
+    dino_transform,
+    focalnet_transform,
+    stablediffusion_transform,
+)
 
 # dictionary mapping pretrained encoder names to their family and model name
 PRETRAINED_ENCODERS = {
@@ -145,13 +148,17 @@ class PretrainedEncoderWrapper(ImageEncoder):
         """
         Reshape the input to a 5D tensor of shape (batch_size, sequence_length, channels, height, width) and apply the preprocessing function.
         """
-        assert len(x.shape) == 5, f"Expected input shape (batch_size, sequence_length, channels, height, width), but got {x.shape}."
+        assert (
+            len(x.shape) == 5
+        ), f"Expected input shape (batch_size, sequence_length, channels, height, width), but got {x.shape}."
         batch_size, sequence_length, *image_shape = x.shape
         x = x.reshape(batch_size * sequence_length, *image_shape)
         x = self.process(x)
         assert torch.is_tensor(x) and x.dtype == torch.float32, "ImageEncoderWrapper expects float32 tensor"
         if x.sum() == 0:
-            warnings.warn("Image augmentation process returned all 0s! If the screen was not fully black, this is likely a bug!")
+            warnings.warn(
+                "Image augmentation process returned all 0s! If the screen was not fully black, this is likely a bug!"
+            )
         return x, (batch_size, sequence_length, *image_shape)
 
     def reshape_output(self, x, shape):
@@ -228,14 +235,18 @@ def get_dino_encoder(model_name):
 
 def get_focalnet_encoder(model_name):
     model = timm.create_model(model_name, pretrained=True, features_only=True)
-    return PretrainedFocalNetEncoderWrapper(model, focalnet_transform(), EMBEDDING_SIZE_BY_FOCALNET_MODEL_NAME[model_name])
+    return PretrainedFocalNetEncoderWrapper(
+        model, focalnet_transform(), EMBEDDING_SIZE_BY_FOCALNET_MODEL_NAME[model_name]
+    )
 
 
 def get_stable_diffusion_encoder(model_name):
     model = AutoencoderKL.from_pretrained(**STABLE_DIFFUSION_KWARGS_BY_MODEL_NAME[model_name]).to(DEVICE)
     # save memory by not keeping decoder
     del model.decoder
-    return PretrainedStableDiffusionEncoderWrapper(model, stablediffusion_transform(), EMBEDDING_SIZE_BY_STABLE_DIFFUSION_MODEL_NAME[model_name])
+    return PretrainedStableDiffusionEncoderWrapper(
+        model, stablediffusion_transform(), EMBEDDING_SIZE_BY_STABLE_DIFFUSION_MODEL_NAME[model_name]
+    )
 
 
 def get_pretrained_encoder(pretrained_encoder_config):

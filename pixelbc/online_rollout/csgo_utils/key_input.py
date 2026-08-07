@@ -2,6 +2,7 @@
 #  https://github.com/TeaPearce/Counter-Strike_Behavioural_Cloning
 
 import time
+
 # https://stackoverflow.com/questions/3698635/getting-cursor-position-in-python
 from ctypes import Structure, byref, c_long, windll
 

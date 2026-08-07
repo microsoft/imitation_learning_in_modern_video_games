@@ -86,24 +86,16 @@ class LSTM(nn.Module, BackboneModel):
         self.output_dim = output_size if output_size is not None else lstm_hidden_size
 
         self.mlp_in = MLP(input_size, lstm_hidden_size, num_layers)
-        self.lstm = nn.LSTM(
-            lstm_hidden_size, lstm_hidden_size, lstm_num_layers, batch_first=True
-        )
-        self.mlp_out = MLP(
-            lstm_hidden_size, lstm_hidden_size, 1, output_size=output_size
-        )
+        self.lstm = nn.LSTM(lstm_hidden_size, lstm_hidden_size, lstm_num_layers, batch_first=True)
+        self.mlp_out = MLP(lstm_hidden_size, lstm_hidden_size, 1, output_size=output_size)
 
         self.hidden_state = None
         self.cell_state = None
 
     def init_for_sequence(self, batch_size):
         current_device = next(self.parameters()).device
-        self.hidden_state = torch.zeros(
-            self.lstm_num_layers, batch_size, self.hidden_size
-        ).to(current_device)
-        self.cell_state = torch.zeros(
-            self.lstm_num_layers, batch_size, self.hidden_size
-        ).to(current_device)
+        self.hidden_state = torch.zeros(self.lstm_num_layers, batch_size, self.hidden_size).to(current_device)
+        self.cell_state = torch.zeros(self.lstm_num_layers, batch_size, self.hidden_size).to(current_device)
 
     def forward(self, x, rollout=False):
         verify_input_shape(self.input_size, x.shape)
@@ -117,9 +109,7 @@ class LSTM(nn.Module, BackboneModel):
         ), f"Hidden state and cell state batch size must match input batch size {batch_size}, but was {self.hidden_state.shape[1]} and {self.cell_state.shape[1]}"
 
         x = self.mlp_in(x)
-        x, (self.hidden_state, self.cell_state) = self.lstm(
-            x, (self.hidden_state, self.cell_state)
-        )
+        x, (self.hidden_state, self.cell_state) = self.lstm(x, (self.hidden_state, self.cell_state))
         x = F.relu(x)
         x = self.mlp_out(x)
 
@@ -127,12 +117,8 @@ class LSTM(nn.Module, BackboneModel):
 
 
 def verify_input_shape(input_size, input_shape):
-    assert (
-        input_shape[-1] == input_size
-    ), f"Input shape {input_shape} does not match input size {input_size}"
-    assert (
-        len(input_shape) == 3
-    ), "Input shape must be (batch_size, sequence_length, input_size)"
+    assert input_shape[-1] == input_size, f"Input shape {input_shape} does not match input size {input_size}"
+    assert len(input_shape) == 3, "Input shape must be (batch_size, sequence_length, input_size)"
 
 
 def count_parameters(model):

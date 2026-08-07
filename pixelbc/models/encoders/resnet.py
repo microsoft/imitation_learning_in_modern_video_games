@@ -9,7 +9,9 @@ class ConvNextBlock(nn.Module):
 
     def __init__(self, channels, activations="relu"):
         super().__init__()
-        self.conv1 = nn.Conv2d(channels, channels, kernel_size=7, stride=1, padding=7 // 2, groups=channels)  # 'Depthwise' conv
+        self.conv1 = nn.Conv2d(
+            channels, channels, kernel_size=7, stride=1, padding=7 // 2, groups=channels
+        )  # 'Depthwise' conv
         self.group_norm = nn.GroupNorm(channels, channels)  # Should be equivalent to layernorm
 
         # Transformer-style non-linearity
@@ -58,7 +60,9 @@ class CustomResNet(nn.Module):
         self.img_dim = image_width
         self.enc_dim = enc_dim
         # check if img_dim is power of 2
-        assert self.img_dim & (self.img_dim - 1) == 0, "ImageEncoder only supports images with dimensions that are a power of 2"
+        assert (
+            self.img_dim & (self.img_dim - 1) == 0
+        ), "ImageEncoder only supports images with dimensions that are a power of 2"
         assert enc_dim & (enc_dim - 1) == 0, "ImageEncoder only supports encoding dimensions that are a power of 2"
         assert enc_dim >= 2, "Image encoding dimension must be at least 2"
 
@@ -83,9 +87,13 @@ class CustomResNet(nn.Module):
         return self.output_dim
 
     def forward(self, x):
-        assert len(x.shape) == 4, f"CustomResNet expects images of shape (batch, channels, {self.img_dim}, {self.img_dim})"
+        assert (
+            len(x.shape) == 4
+        ), f"CustomResNet expects images of shape (batch, channels, {self.img_dim}, {self.img_dim})"
         img_channel, img_height, img_width = x.shape[-3:]
-        assert self.img_dim == img_width == img_height, f"CustomResNet expects images of size (channels, {self.img_dim}, {self.img_dim})"
+        assert (
+            self.img_dim == img_width == img_height
+        ), f"CustomResNet expects images of size (channels, {self.img_dim}, {self.img_dim})"
         x = nn.functional.gelu(self.conv1(x))
         for i in range(self.num_layers):
             x = getattr(self, f"block{i+1}")(x)

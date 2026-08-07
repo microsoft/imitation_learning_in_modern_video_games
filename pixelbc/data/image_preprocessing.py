@@ -7,8 +7,12 @@ import numpy as np
 from albumentations import Compose, augmentations
 
 from pixelbc.models.encoders.pretrained_encoders import (
-    DINO_CROP_SIZE, DINO_IMAGE_SIZE, FOCALNET_IMAGE_SIZE,
-    IMAGE_SIZE_BY_CLIP_MODEL_NAME, STABLE_DIFFUSION_IMAGE_SIZE)
+    DINO_CROP_SIZE,
+    DINO_IMAGE_SIZE,
+    FOCALNET_IMAGE_SIZE,
+    IMAGE_SIZE_BY_CLIP_MODEL_NAME,
+    STABLE_DIFFUSION_IMAGE_SIZE,
+)
 
 
 def albumentations_preprocess(transform, img):
@@ -128,7 +132,9 @@ def get_stablediffusion_resize_and_image_shape():
     )
 
 
-def get_preprocessing_function_and_image_shape(use_pretrained_encoder, pretrained_encoder_config, image_height, image_width):
+def get_preprocessing_function_and_image_shape(
+    use_pretrained_encoder, pretrained_encoder_config, image_height, image_width
+):
     """
     Get the preprocessing function and image shape for a given encoder type.
     :param use_pretrained_encoder: Whether to use a pretrained encoder or not.
@@ -138,7 +144,9 @@ def get_preprocessing_function_and_image_shape(use_pretrained_encoder, pretraine
     :return: The preprocessing function, and output image shape as (C, image_height, image_width).
     """
     if use_pretrained_encoder:
-        assert pretrained_encoder_config is not None, "Pretrained encoder config must be provided for pretrained encoders."
+        assert (
+            pretrained_encoder_config is not None
+        ), "Pretrained encoder config must be provided for pretrained encoders."
         assert (
             "family" in pretrained_encoder_config and "name" in pretrained_encoder_config
         ), "Pretrained encoder config must contain the family and name of the model."

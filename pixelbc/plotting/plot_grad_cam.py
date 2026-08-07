@@ -8,8 +8,7 @@ import torch
 from pytorch_grad_cam import GradCAM
 from pytorch_grad_cam.utils.image import show_cam_on_image
 
-from pixelbc.data.image_preprocessing import \
-    get_preprocessing_function_and_image_shape
+from pixelbc.data.image_preprocessing import get_preprocessing_function_and_image_shape
 from pixelbc.data.images import load_image, render_image
 from pixelbc.models.encoders.pretrained_encoders import unfreeze_model
 from pixelbc.utils.load_checkpoint import load_checkpoint
@@ -97,9 +96,13 @@ def get_target_layers_and_reshape_transform(encoder_model, model_config):
             if model_config.pretrained_encoder.name == "RN50":
                 return [encoder_model.model.model.visual.layer4[-1]], None
             elif model_config.pretrained_encoder.name == "ViT-B/16":
-                return [encoder_model.model.model.visual.transformer.resblocks[-1].ln_1], partial(vit_reshape_transform, 0)
+                return [encoder_model.model.model.visual.transformer.resblocks[-1].ln_1], partial(
+                    vit_reshape_transform, 0
+                )
             elif model_config.pretrained_encoder.name == "ViT-L/14":
-                return [encoder_model.model.model.visual.transformer.resblocks[-1].ln_1], partial(vit_reshape_transform, 0)
+                return [encoder_model.model.model.visual.transformer.resblocks[-1].ln_1], partial(
+                    vit_reshape_transform, 0
+                )
             else:
                 raise ValueError(f"Grad-Cam not supported for {model_config.pretrained_encoder.name} CLIP encoder.")
         elif model_config.pretrained_encoder.family == "dino":
@@ -153,7 +156,9 @@ def get_grad_cam_image(image, model, model_config, target_concept, save_path=Non
     if DEVICE == "cpu":
         forward_model = forward_model.to(dtype=torch.float32)
 
-    cam = GradCAM(model=forward_model, target_layers=target_layers, use_cuda=DEVICE == "cuda", reshape_transform=reshape_transform)
+    cam = GradCAM(
+        model=forward_model, target_layers=target_layers, use_cuda=DEVICE == "cuda", reshape_transform=reshape_transform
+    )
     grayscale_cam = cam(input_tensor=image_tensor, targets=targets)
     grayscale_cam = grayscale_cam[0]
 
@@ -170,7 +175,9 @@ if __name__ == "__main__":
     argparser = argparse.ArgumentParser()
     argparser.add_argument("--checkpoint_path", type=str, required=True, help="Path to model checkpoint")
     argparser.add_argument("--image_path", type=str, required=True, help="Path to image")
-    argparser.add_argument("--save_path", type=str, default=None, help="Path to the directory where the image will be saved")
+    argparser.add_argument(
+        "--save_path", type=str, default=None, help="Path to the directory where the image will be saved"
+    )
     argparser.add_argument(
         "--target_concept",
         type=GradCamTargetConcept,

@@ -114,7 +114,9 @@ def get_multidiscrete_metrics(pred: Tensor, target: Tensor, num_discretisation_b
     :param num_discretisation_bins: number of discrete joystick action bins
     """
     num_actions = pred.shape[-1]
-    assert num_actions == target.shape[-1], f"Number of actions in prediction and target must match: {num_actions} != {target.shape[-1]}"
+    assert (
+        num_actions == target.shape[-1]
+    ), f"Number of actions in prediction and target must match: {num_actions} != {target.shape[-1]}"
     pred = pred.reshape(-1, num_actions)
     target = target.reshape(-1, num_actions)
 
@@ -188,7 +190,9 @@ def get_continuous_metrics(
     :return: metrics on the given predictions
     """
     num_actions = pred.shape[-1]
-    assert num_actions == target.shape[-1], f"Number of actions in prediction and target must match: {num_actions} != {target.shape[-1]}"
+    assert (
+        num_actions == target.shape[-1]
+    ), f"Number of actions in prediction and target must match: {num_actions} != {target.shape[-1]}"
     pred = pred.reshape(-1, num_actions)
     target = target.reshape(-1, num_actions)
 
@@ -225,7 +229,9 @@ def get_continuous_metrics(
             }
         )
     else:
-        raise ValueError(f"Unexpected number of continuous joystick actions: {pred.shape[1]}. Expected 2 or 4 joystick actions.")
+        raise ValueError(
+            f"Unexpected number of continuous joystick actions: {pred.shape[1]}. Expected 2 or 4 joystick actions."
+        )
 
     return metrics
 

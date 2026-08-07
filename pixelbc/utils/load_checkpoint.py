@@ -16,7 +16,9 @@ def get_backwards_compatibility_kwargs(hyperparameters):
     if "image_shape" not in hyperparameters:
         # old config does not contain image_shape
         assert (
-            "framestacking" in hyperparameters and "image_width" in hyperparameters and "image_height" in hyperparameters
+            "framestacking" in hyperparameters
+            and "image_width" in hyperparameters
+            and "image_height" in hyperparameters
         ), "Need to provide `img_shape` as hyperparameter or 'framestacking', 'image_width', and 'image_height'!"
         image_shape = (
             hyperparameters["framestacking"] * 3,
@@ -41,7 +43,9 @@ def get_backwards_compatibility_kwargs(hyperparameters):
                 "cnn_encoder_start_channels": hyperparameters["cnn_encoder_start_channels"],
                 "mlp_encoder_hidden_size": hyperparameters["mlp_encoder_hidden_size"],
                 "mlp_encoder_num_layers": hyperparameters["mlp_encoder_num_layers"],
-                "use_image_augmentation": hyperparameters["use_image_augmentation"] if "use_image_augmentation" in hyperparameters else False,
+                "use_image_augmentation": (
+                    hyperparameters["use_image_augmentation"] if "use_image_augmentation" in hyperparameters else False
+                ),
             }
         )
         kwargs["encoder"] = encoder_config
@@ -85,7 +89,9 @@ def load_checkpoint(checkpoint_path, eval_mode=False, device=DEVICE):
                 if encoder_config is not None:
                     encoder_config = OmegaConf.create(encoder_config)
                     encoder_config.use_image_augmentation = False
-                model = BCModel.load_from_checkpoint(checkpoint_path, encoder=encoder_config, train_from_embeddings=False, map_location=device)
+                model = BCModel.load_from_checkpoint(
+                    checkpoint_path, encoder=encoder_config, train_from_embeddings=False, map_location=device
+                )
             else:
                 model = BCModel.load_from_checkpoint(checkpoint_path, train_from_embeddings=False, map_location=device)
             model.eval()

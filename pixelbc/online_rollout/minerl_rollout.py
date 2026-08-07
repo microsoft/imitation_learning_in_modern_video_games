@@ -148,7 +148,9 @@ class MineRLThreechopRollout(OnlineRollout):
         assert self.downsample == int(self.downsample), f"FPS {self.fps} must evenly divide {GAME_FPS}"
         self.downsample = int(self.downsample)
         env_creation_fn = create_env_creation_fn(self.downsample)
-        self.env = PeriodicallyRecreateWrapper(env_creation_fn(), env_creation_fn, recreate_every_n_resets=RECREATE_EVERY_N_RESETS)
+        self.env = PeriodicallyRecreateWrapper(
+            env_creation_fn(), env_creation_fn, recreate_every_n_resets=RECREATE_EVERY_N_RESETS
+        )
 
     def _reset_and_run_till_done(self, video_out):
         obs = self.env.reset()

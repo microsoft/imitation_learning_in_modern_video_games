@@ -35,10 +35,14 @@ def start_csgo_rollout(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Rollout IL model in environment")
-    parser.add_argument("-g", "--game", type=str, choices=["minerl", "csgo"], default="dungeons", help="Game to rollout model in")
+    parser.add_argument(
+        "-g", "--game", type=str, choices=["minerl", "csgo"], default="dungeons", help="Game to rollout model in"
+    )
     parser.add_argument("-ckpt", "--checkpoint", required=True, type=str, help="path to model checkpoint")
     parser.add_argument("-p", "--path", type=str, default="evaluation", help="Path to save evaluation results")
-    parser.add_argument("-fps", "--fps", required=True, type=int, default=30, help="frames per second to provide to model")
+    parser.add_argument(
+        "-fps", "--fps", required=True, type=int, default=30, help="frames per second to provide to model"
+    )
     parser.add_argument(
         "-ja",
         "--joystick_action_mode",
@@ -63,7 +67,9 @@ if __name__ == "__main__":
         choices=["stochastic", "deterministic"],
         help="Mode of action selection for button actions",
     )
-    parser.add_argument("--ignore_keyboard_inputs", action="store_true", help="Ignore keyboard inputs and run for time limit")
+    parser.add_argument(
+        "--ignore_keyboard_inputs", action="store_true", help="Ignore keyboard inputs and run for time limit"
+    )
 
     args = parser.parse_args()
 

@@ -32,7 +32,9 @@ class ImageEncoderWrapper(nn.Module):
         x = self.process(x)
         assert torch.is_tensor(x) and x.dtype == torch.float32, "ImageEncoderWrapper expects float32 tensor"
         if x.sum() == 0:
-            warnings.warn("Image augmentation process returned all 0s! If the screen was not fully black, this is likely a bug!")
+            warnings.warn(
+                "Image augmentation process returned all 0s! If the screen was not fully black, this is likely a bug!"
+            )
 
         # embed image and reshape to original dimensions
         emb = self.encoder(x)
@@ -138,7 +140,9 @@ def get_image_encoder(image_shape, encoder_config):
     elif encoder_config.type == "impala_resnet":
         encoder = ImpalaResNet(image_shape)
     elif encoder_config.type == "cnn" or encoder_config.type == "resnet":
-        encoder = ResNetImageEncoder(image_shape, encoder_config.cnn_encoder_dim, encoder_config.cnn_encoder_start_channels)
+        encoder = ResNetImageEncoder(
+            image_shape, encoder_config.cnn_encoder_dim, encoder_config.cnn_encoder_start_channels
+        )
     elif encoder_config.type == "vit":
         encoder = ViTImageEncoder(
             image_shape,
@@ -149,7 +153,9 @@ def get_image_encoder(image_shape, encoder_config):
             encoder_config.vit_encoder_mlp_dim,
         )
     elif encoder_config.type == "mlp":
-        encoder = MLPImageEncoder(image_shape, encoder_config.mlp_encoder_hidden_size, encoder_config.mlp_encoder_num_layers)
+        encoder = MLPImageEncoder(
+            image_shape, encoder_config.mlp_encoder_hidden_size, encoder_config.mlp_encoder_num_layers
+        )
     else:
         raise ValueError(f"Unknown image encoder {encoder_config.type}")
     process = default_transform(encoder_config.use_image_augmentation)

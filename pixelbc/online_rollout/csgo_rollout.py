@@ -7,13 +7,11 @@ import numpy as np
 import win32gui
 from csgo_utils.config import wait_for_loop_end
 from csgo_utils.key_input import mouse_check
-from csgo_utils.key_output import (hold_left_click, mp_restartgame,
-                                   release_left_click, set_pos)
+from csgo_utils.key_output import hold_left_click, mp_restartgame, release_left_click, set_pos
 from csgo_utils.meta_utils import server
 from csgo_utils.screen_input import grab_window
 
-from pixelbc.data.csgo_actions import (CSGO_ACTIONS,
-                                       csgo_model_output_to_csgo_action)
+from pixelbc.data.csgo_actions import CSGO_ACTIONS, csgo_model_output_to_csgo_action
 from pixelbc.online_rollout.online_rollout import OnlineRollout
 
 GAME_WINDOW_NAME = "Counter-Strike: Global Offensive - Direct3D 9"

@@ -73,7 +73,9 @@ n_clicks = 2  # number of mouse buttons, left, right
 n_mouse_x = len(mouse_x_possibles)  # number of outputs on mouse x axis
 n_mouse_y = len(mouse_y_possibles)  # number of outputs on mouse y axis
 n_extras = 3  # number of extra aux inputs, eg health, ammo, team. others could be weapon, kills, deaths
-aux_input_length = n_keys + n_clicks + 1 + 1 + n_extras  # aux uses continuous input for mouse this is multiplied by ACTIONS_PREV elsewhere
+aux_input_length = (
+    n_keys + n_clicks + 1 + 1 + n_extras
+)  # aux uses continuous input for mouse this is multiplied by ACTIONS_PREV elsewhere
 
 
 def mouse_preprocess(mouse_x, mouse_y):

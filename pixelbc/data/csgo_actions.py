@@ -90,7 +90,9 @@ def preprocess_csgo_action_line(line, discretize_continuous_actions):
     assert not discretize_continuous_actions, "Discretized continuous actions not supported for CSGO"
     actions_data = []
     mouse_x_onehot = line[CSGO_N_KEYS + CSGO_N_CLICKS : CSGO_N_KEYS + CSGO_N_CLICKS + CSGO_N_MOUSE_X]
-    mouse_y_onehot = line[CSGO_N_KEYS + CSGO_N_CLICKS + CSGO_N_MOUSE_X : CSGO_N_KEYS + CSGO_N_CLICKS + CSGO_N_MOUSE_X + CSGO_N_MOUSE_Y]
+    mouse_y_onehot = line[
+        CSGO_N_KEYS + CSGO_N_CLICKS + CSGO_N_MOUSE_X : CSGO_N_KEYS + CSGO_N_CLICKS + CSGO_N_MOUSE_X + CSGO_N_MOUSE_Y
+    ]
     mouse_x_continuous_normalized = (mouse_x_onehot @ CSGO_MOUSE_X_BIN_CENTERS).item() / CSGO_MOUSE_X_NORMALIZER
     mouse_y_continuous_normalized = (mouse_y_onehot @ CSGO_MOUSE_Y_BIN_CENTERS).item() / CSGO_MOUSE_Y_NORMALIZER
     mouse_click = line[CSGO_N_KEYS].item()

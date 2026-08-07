@@ -56,7 +56,9 @@ def get_completed_and_incomplete_rollouts(output_dir, model_name):
     plugin_file_indices = set([get_rollout_idx_from_output_file(plugin_file) for plugin_file in plugin_files])
 
     completed_rollout_indices = (
-        video_file_indices.intersection(config_file_indices).intersection(actions_file_indices).intersection(plugin_file_indices)
+        video_file_indices.intersection(config_file_indices)
+        .intersection(actions_file_indices)
+        .intersection(plugin_file_indices)
     )
     incomplete_rollout_indices = video_file_indices - completed_rollout_indices
     return completed_rollout_indices, incomplete_rollout_indices
@@ -76,10 +78,14 @@ def cleanup_incomplete_rollouts(output_dir, model_name, incomplete_rollout_indic
 
 
 def check_rollouts_complete_and_cleanup(output_dir, model_name, num_rollouts):
-    completed_rollout_indices, incomplete_rollout_indices = get_completed_and_incomplete_rollouts(output_dir, model_name)
+    completed_rollout_indices, incomplete_rollout_indices = get_completed_and_incomplete_rollouts(
+        output_dir, model_name
+    )
     last_completed_rollout_idx = max(completed_rollout_indices) + 1 if len(completed_rollout_indices) > 0 else 0
 
-    print(f"{model_name}: {last_completed_rollout_idx}/{num_rollouts} rollouts completed ({len(incomplete_rollout_indices)} incomplete)")
+    print(
+        f"{model_name}: {last_completed_rollout_idx}/{num_rollouts} rollouts completed ({len(incomplete_rollout_indices)} incomplete)"
+    )
     if last_completed_rollout_idx == num_rollouts:
         assert len(incomplete_rollout_indices) == 0, f"Found incomplete rollouts: {incomplete_rollout_indices}"
         return True

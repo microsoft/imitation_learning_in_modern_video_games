@@ -18,7 +18,9 @@ class DeviceStatsMemoryMonitor(DeviceStatsMonitor):
             memory_data.available / (1024 * 1024 * 1024),
             sync_dist=log_sync_dist,
         )
-        model.log(f"MemoryProfiling.on_{log_name}_batch_end/memory_used_percent", memory_data.percent, sync_dist=log_sync_dist)
+        model.log(
+            f"MemoryProfiling.on_{log_name}_batch_end/memory_used_percent", memory_data.percent, sync_dist=log_sync_dist
+        )
         memory_info = psutil.Process().memory_info()
         model.log(
             f"MemoryProfiling.on_{log_name}_batch_end/memory_used_gb_rss",
@@ -61,7 +63,9 @@ class WeightsCallback(Callback):
         # This logging is a little heavy, so we don't want to do it all the time
         if self.timestep % self.log_freq != 0:
             return
-        tb_logger = trainer.logger  # This seems to always return the first logger, which is the tensorboard logger for us.
+        tb_logger = (
+            trainer.logger
+        )  # This seems to always return the first logger, which is the tensorboard logger for us.
         if not isinstance(tb_logger, TensorBoardLogger):
             print("The first logger is not a TensorBoardLogger. Skipping weights logging.")
             return

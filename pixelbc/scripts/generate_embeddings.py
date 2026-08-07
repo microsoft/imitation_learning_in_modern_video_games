@@ -19,6 +19,7 @@ If things are too slow on a single GPU, you can try the following options:
 2. Utilize multiple processes with different `filelists` and CUDA_VISIBLE_DEVICES.
 
 """
+
 import argparse
 from math import ceil
 from pathlib import Path
@@ -108,7 +109,9 @@ def _sanity_check_and_prepare_resources(args):
     config = load_config_from_file(args.encoder_config)
     assert "data" in config, f"Config file {args.encoder_config} does not contain a 'data' section!"
     assert "model" in config, f"Config file {args.encoder_config} does not contain a 'model' section!"
-    assert "pretrained_encoder" in config.model, f"Config file {args.encoder_config} does not contain a 'pretrained_encoder' section!"
+    assert (
+        "pretrained_encoder" in config.model
+    ), f"Config file {args.encoder_config} does not contain a 'pretrained_encoder' section!"
 
     # overwrite encoder family and name if argument is given
     if args.encoder_family is not None:
@@ -119,11 +122,15 @@ def _sanity_check_and_prepare_resources(args):
 
     config.data.game = args.game
 
-    encoder_dirname = get_pretrained_encoder_dirname(config.model.pretrained_encoder.family, config.model.pretrained_encoder.name)
+    encoder_dirname = get_pretrained_encoder_dirname(
+        config.model.pretrained_encoder.family, config.model.pretrained_encoder.name
+    )
     output_dir = Path(args.output_dir) / encoder_dirname
 
     # output directory should be empty or non-existent
-    assert not (output_dir.exists() and len(list(output_dir.iterdir())) > 0), f"Output directory {output_dir} is not empty!"
+    assert not (
+        output_dir.exists() and len(list(output_dir.iterdir())) > 0
+    ), f"Output directory {output_dir} is not empty!"
 
     # prepare resources
     # create output_dir if it does not exist
@@ -170,7 +177,9 @@ class SequentialDataLoader:
 
 
 def setup_dataloader(config):
-    assert not config.model.train_from_embeddings, "This script is for generating embeddings, set `model.train_from_embeddings=False`."
+    assert (
+        not config.model.train_from_embeddings
+    ), "This script is for generating embeddings, set `model.train_from_embeddings=False`."
     file_list = config[CONFIG_CUSTOM_DATA_KEY]["file_list"]
     parser = get_data_parser(config.model, **config.data)
     return SequentialDataLoader(parser, file_list, batch_size=1)
@@ -225,7 +234,9 @@ def generate_embeddings(args, config, output_dir, device):
             embeddings = np.vstack(embeddings_list)
             save_traj_embeddings(embeddings, output_dir, filename)
         except torch.cuda.OutOfMemoryError:
-            print(f"\tOut of memory when processing {filename}--> empty cache. Try setting --batch_size to a smaller value.")
+            print(
+                f"\tOut of memory when processing {filename}--> empty cache. Try setting --batch_size to a smaller value."
+            )
             torch.cuda.empty_cache()
             continue
         except Exception as e:

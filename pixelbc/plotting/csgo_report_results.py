@@ -127,7 +127,9 @@ def get_times_and_cumulative_kills(rollout_file, config_file, interval=10):
     ), f"Expected effective duration to be close to {ORIGINAL_DURATION}, but got {effective_duration} for {rollout_file}"
 
     kills = rollout_data["kills"][5:]
-    assert len(kills) == len(rel_times), f"Expected same number of kills and times, but got {len(kills)} and {len(rel_times)} for {rollout_file}"
+    assert len(kills) == len(
+        rel_times
+    ), f"Expected same number of kills and times, but got {len(kills)} and {len(rel_times)} for {rollout_file}"
 
     # Get relative times and kills every interval seconds
     filtered_rel_times = []
@@ -141,7 +143,9 @@ def get_times_and_cumulative_kills(rollout_file, config_file, interval=10):
     if len(filtered_rel_times) < ORIGINAL_DURATION / interval:
         filtered_rel_times.append(rel_times[-1])
         filtered_kills.append(kills[-1])
-        print(f"[Warning] Expected {ORIGINAL_DURATION / interval} intervals, but got {len(filtered_rel_times)} for {rollout_file}")
+        print(
+            f"[Warning] Expected {ORIGINAL_DURATION / interval} intervals, but got {len(filtered_rel_times)} for {rollout_file}"
+        )
 
     return filtered_rel_times, filtered_kills
 
@@ -178,7 +182,8 @@ def main(args):
             )
             continue
         rollout_progression_result = [
-            get_kills_per_minute(rollout_file, config_file) for rollout_file, config_file in zip(rollout_files, config_files)
+            get_kills_per_minute(rollout_file, config_file)
+            for rollout_file, config_file in zip(rollout_files, config_files)
         ]
         directory_to_seeds_to_rollout_results[directory_name][seed] = rollout_progression_result
 
@@ -194,7 +199,9 @@ def main(args):
             rollout_results = np.array(rollout_results)
             all_rollout_results.append(rollout_results)
         if len(all_rollout_results) != len(DEFAULT_SEEDS):
-            print(f"[Warning] Expected {len(DEFAULT_SEEDS)} seeds, but got {len(all_rollout_results)} for {directory_name}.")
+            print(
+                f"[Warning] Expected {len(DEFAULT_SEEDS)} seeds, but got {len(all_rollout_results)} for {directory_name}."
+            )
         all_rollout_results = np.array(all_rollout_results)
         nice_name_to_kills_per_minute[nice_name] = {
             "kills_per_minute": all_rollout_results,
@@ -205,10 +212,14 @@ def main(args):
 
     # Print out the overall success ratio and sort from highest to lowest
     print("Overall kills-per-minute (mean, std, std_err):")
-    nice_name_and_kills_per_minute = sorted(nice_name_to_kills_per_minute.items(), key=lambda x: x[1]["mean"], reverse=True)
+    nice_name_and_kills_per_minute = sorted(
+        nice_name_to_kills_per_minute.items(), key=lambda x: x[1]["mean"], reverse=True
+    )
     for nice_name, kills_per_minute in nice_name_and_kills_per_minute:
         # Print as percentage and std err
-        print(f"\t{nice_name:>30}: {kills_per_minute['mean']:>5.2f} ({kills_per_minute['std']:>4.2f}) ({kills_per_minute['std_err']:>4.2f})")
+        print(
+            f"\t{nice_name:>30}: {kills_per_minute['mean']:>5.2f} ({kills_per_minute['std']:>4.2f}) ({kills_per_minute['std_err']:>4.2f})"
+        )
 
     # Print out t-test results for all models against each other
     if args.t_test:
@@ -249,7 +260,7 @@ def main(args):
             assert len(config_files) == len(
                 rollout_files
             ), f"Expected same number of config and plugin data files, but got {len(config_files)} configs and {len(rollout_files)} "
-            + f"plugin datas for {directory_path}"
+            +f"plugin datas for {directory_path}"
             if len(rollout_files) != EXPECTED_N_ROLLOUT_FILES:
                 print(
                     f"[Warning] Expected {EXPECTED_N_ROLLOUT_FILES} rollout files, but found {len(rollout_files)} "
@@ -257,7 +268,8 @@ def main(args):
                 )
                 continue
             times_and_kills = [
-                get_times_and_cumulative_kills(rollout_file, config_file) for rollout_file, config_file in zip(rollout_files, config_files)
+                get_times_and_cumulative_kills(rollout_file, config_file)
+                for rollout_file, config_file in zip(rollout_files, config_files)
             ]
             times = np.array([times for (times, _) in times_and_kills])
             kills = np.array([kills for (_, kills) in times_and_kills])
@@ -276,7 +288,9 @@ def main(args):
                 all_rollout_times.append(times)
                 all_rollout_kills.append(kills)
             if len(all_rollout_times) != len(DEFAULT_SEEDS):
-                print(f"[Warning] Expected {len(DEFAULT_SEEDS)} seeds, but got {len(all_rollout_times)} for {directory_name}.")
+                print(
+                    f"[Warning] Expected {len(DEFAULT_SEEDS)} seeds, but got {len(all_rollout_times)} for {directory_name}."
+                )
             if len(all_rollout_times) == 1:
                 # average/ std over runs per model
                 times = np.mean(all_rollout_times[0], axis=0)
@@ -316,6 +330,8 @@ if __name__ == "__main__":
     )
     parser.add_argument("--individual_seeds", action="store_true", help="Report results for individual seeds instead")
     parser.add_argument("--plot", action="store_true", help="Plot lineplot for kills over time")
-    parser.add_argument("--t_test", action="store_true", help="Perform t-test of all models vs all models, and print out results.")
+    parser.add_argument(
+        "--t_test", action="store_true", help="Perform t-test of all models vs all models, and print out results."
+    )
     args = parser.parse_args()
     main(args)

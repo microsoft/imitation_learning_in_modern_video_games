@@ -3,6 +3,7 @@
 
 import glob
 import json
+
 # This process was done on the MineRL VPT 6.13 dataset
 import os
 

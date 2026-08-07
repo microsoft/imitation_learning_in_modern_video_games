@@ -89,7 +89,9 @@ def main(args):
             continue
         rollout_files = sorted(glob.glob(os.path.join(directory_path, "plugin_data*.yaml")))
         if len(rollout_files) != EXPECTED_N_ROLLOUT_FILES:
-            print(f"[Warning] Expected {EXPECTED_N_ROLLOUT_FILES} rollout files, but found {len(rollout_files)} in {directory_path}. Skipping.")
+            print(
+                f"[Warning] Expected {EXPECTED_N_ROLLOUT_FILES} rollout files, but found {len(rollout_files)} in {directory_path}. Skipping."
+            )
             continue
         rollout_pregression_results = [get_num_treechops(rollout_file) for rollout_file in rollout_files]
         directory_to_seeds_to_rollout_results[directory_name][seed] = rollout_pregression_results
@@ -116,7 +118,9 @@ def main(args):
                 [np.sum(rollout_results >= i) / EXPECTED_N_ROLLOUT_FILES for i in range(1, args.max_treechop_num + 1)]
             )
         if len(all_rollout_results) != len(DEFAULT_SEEDS):
-            print(f"[Warning] Expected {len(DEFAULT_SEEDS)} seeds, but got {len(all_rollout_results)} for {directory_name}.")
+            print(
+                f"[Warning] Expected {len(DEFAULT_SEEDS)} seeds, but got {len(all_rollout_results)} for {directory_name}."
+            )
         rollout_pregression_results = np.array(reach_progression_over_seeds)
         all_rollout_results = np.array(all_rollout_results)
         nice_name_to_mean_treechop[nice_name] = np.mean(all_rollout_results)
@@ -149,7 +153,9 @@ def main(args):
 
     # Print out the overall success ratio and sort from highest to lowest
     print("Overall success ratio (mean, std, std_err):")
-    nice_name_and_overall_success_ratio = sorted(nice_name_to_overall_success_ratio.items(), key=lambda x: x[1]["mean"], reverse=True)
+    nice_name_and_overall_success_ratio = sorted(
+        nice_name_to_overall_success_ratio.items(), key=lambda x: x[1]["mean"], reverse=True
+    )
     for nice_name, overall_success_ratio in nice_name_and_overall_success_ratio:
         # Print as percentage and std err
         print(
@@ -189,7 +195,9 @@ def main(args):
 
 if __name__ == "__main__":
     parser = ArgumentParser()
-    parser.add_argument("--directories", nargs="+", required=True, type=str, help="Directories to plot. They should end with '_seed_#'")
+    parser.add_argument(
+        "--directories", nargs="+", required=True, type=str, help="Directories to plot. They should end with '_seed_#'"
+    )
     parser.add_argument(
         "--max_treechop_num",
         default=DEFAULT_MAX_TREECHOPS,
@@ -198,6 +206,8 @@ if __name__ == "__main__":
     )
     parser.add_argument("--output", default=None, type=str, help="Where to store the plot")
     parser.add_argument("--individual_seeds", action="store_true", help="Report results for individual seeds instead")
-    parser.add_argument("--t_test", action="store_true", help="Perform t-test of all models vs all models, and print out results.")
+    parser.add_argument(
+        "--t_test", action="store_true", help="Perform t-test of all models vs all models, and print out results."
+    )
     args = parser.parse_args()
     main(args)

@@ -8,10 +8,13 @@ import torch
 from pixelbc.data import get_data_module
 from pixelbc.models.bc_model import BCModel
 from pixelbc.utils.callbacks import get_callbacks
-from pixelbc.utils.config_utils import (has_test_data, has_train_data,
-                                        has_validation_data,
-                                        load_config_from_file_and_cli,
-                                        save_full_train_config_and_split)
+from pixelbc.utils.config_utils import (
+    has_test_data,
+    has_train_data,
+    has_validation_data,
+    load_config_from_file_and_cli,
+    save_full_train_config_and_split,
+)
 from pixelbc.utils.loggers import get_loggers
 
 DEFAULT_LOG_DIR = "training_logs"

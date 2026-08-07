@@ -9,12 +9,13 @@ import torch
 
 from pixelbc.data.actions import get_joystick_bins
 from pixelbc.data.csgo_actions import preprocess_csgo_action_line
-from pixelbc.data.image_preprocessing import \
-    get_preprocessing_function_and_image_shape
+from pixelbc.data.image_preprocessing import get_preprocessing_function_and_image_shape
 from pixelbc.data.minerl_actions import preprocess_minerl_action_line
-from pixelbc.data.utils import (get_embedding_file,
-                                get_minerl_video_file_from_action_file,
-                                get_pretrained_encoder_dirname)
+from pixelbc.data.utils import (
+    get_embedding_file,
+    get_minerl_video_file_from_action_file,
+    get_pretrained_encoder_dirname,
+)
 
 EMBEDDING_KEY = "embedding"
 
@@ -385,7 +386,9 @@ class CSGOImageParser(DataParser):
         inputs = np.array(frames)
         actions = np.array(actions)
 
-        return torch.from_numpy(inputs).to(dtype=DataParser.IMAGE_TYPE), torch.from_numpy(actions).to(dtype=DataParser.ACTION_TYPE)
+        return torch.from_numpy(inputs).to(dtype=DataParser.IMAGE_TYPE), torch.from_numpy(actions).to(
+            dtype=DataParser.ACTION_TYPE
+        )
 
     def get_start_indices_from_data(self, actions):
         """Get a list of start indices for the sequences in the action file
@@ -457,7 +460,9 @@ class CSGOEmbeddingParser(CSGOImageParser):
         embedding_filename = get_embedding_file(self.encoder_dirname, action_filename)
         embeddings = self._load_embedding(embedding_filename)
 
-        return torch.from_numpy(embeddings).to(dtype=DataParser.EMBEDDING_TYPE), torch.from_numpy(actions).to(dtype=DataParser.ACTION_TYPE)
+        return torch.from_numpy(embeddings).to(dtype=DataParser.EMBEDDING_TYPE), torch.from_numpy(actions).to(
+            dtype=DataParser.ACTION_TYPE
+        )
 
     def get_sequence_from_data(self, inputs, actions, start_index):
         """Get the sequence of indices to access from the data and downsample
@@ -489,8 +494,12 @@ def get_data_parser(
     train_from_embeddings = model_config.train_from_embeddings
 
     if train_from_embeddings:
-        assert model_config.pretrained_encoder is not None, "Pretrained encoder must be specified for training from embeddings"
-        encoder_dirname = get_pretrained_encoder_dirname(model_config.pretrained_encoder.family, model_config.pretrained_encoder.name)
+        assert (
+            model_config.pretrained_encoder is not None
+        ), "Pretrained encoder must be specified for training from embeddings"
+        encoder_dirname = get_pretrained_encoder_dirname(
+            model_config.pretrained_encoder.family, model_config.pretrained_encoder.name
+        )
     else:
         encoder_dirname = None
 
