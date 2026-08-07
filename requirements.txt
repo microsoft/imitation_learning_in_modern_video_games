@@ -21,4 +21,3 @@ h5py==3.9.0
 pywin32==306
 keyboard==0.13.5
 pymem
-tensorboard==2.21.0

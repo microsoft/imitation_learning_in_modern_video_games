@@ -10,6 +10,30 @@ This project trains a behavioral cloning agent on Counter-Strike: Global Offensi
 
 ---
 
+## Environment Setup (Windows + RTX 5090 / Blackwell sm_120)
+
+This box is Windows 11 with an RTX 5090 (Blackwell, `sm_120`). Two hard requirements:
+
+- **torch must be cu128 or newer.** The default PyPI wheel is CPU-only, and cu121/cu124 wheels have no `sm_120` kernels (`CUDA error: no kernel image is available for execution on the device`). Use **torch 2.7.0 + cu128**.
+- **Python 3.11**, created with **uv** (3.12 hits thread-pool deadlocks on Windows).
+
+Recreate the venv from scratch:
+```powershell
+.\recreate_venv.bat
+```
+It removes `.venv`, runs `uv venv --python 3.11`, installs `torch==2.7.0 torchvision==0.22.0 torchaudio==2.7.0` from the cu128 index, then `requirements.txt` + the `pixelbc` package, and verifies `torch.cuda.is_available()`.
+
+### DataLoader workers on Windows — keep at 0
+`BCDataSet` loads the **entire dataset into RAM** in `__init__`. On Windows (`spawn` start method) every DataLoader worker gets a *pickled copy* of that in-RAM dataset, so the old `train_num_workers: 20` spawned 20 dataset copies → RAM thrash + spawn overhead → **~0.02 it/s (≈8.7 h/epoch)**.
+
+Fix (already applied):
+- `pixelbc/data/datamodule.py` — `persistent_workers`/`prefetch_factor` are only passed when `num_workers > 0`, so `0` is now legal.
+- `configs/csgo/*.yaml` — `train_num_workers` and `other_num_workers` set to **0**.
+
+With the data already in RAM, `num_workers=0` (single process, no copy, no IO wait) is the **fastest** path here. A worker change only takes effect on a **fresh run** — restart training to pick it up.
+
+---
+
 ## Directory Structure
 
 ```
@@ -437,17 +461,18 @@ class CSGODataParserWithFlow:
 | Pre-compute depth maps | ↑ Speed | Hard |
 | Create data index | ↑ Speed | Medium |
 
-**Fastest config:**
+**Fastest config (Windows / this box):**
 ```yaml
 data:
-  train_num_workers: 8          # Parallel loading
-  prefetch_factor: 4
-  batch_size: 64                # Larger batches on GPU
+  train_num_workers: 0          # in-RAM dataset -> 0 is fastest on Windows (spawn)
+  other_num_workers: 0
+  batch_size: 64                # larger batches on GPU
 
 trainer:
   accelerator: gpu
-  precision: 16-mixed           # Mixed precision
+  precision: 16-mixed           # mixed precision
 ```
+> The `num_workers > 0` / `prefetch_factor` advice above is for **Linux (fork)**. On Windows the dataset is duplicated per worker, so keep workers at 0.
 
 ---
 
@@ -469,10 +494,10 @@ Automatically removes bad files from split file.
 - Reduce sequence_length (default: 100 → try 50)
 - Use smaller encoder (start_channels: 32 → 16)
 
-### Training Too Slow
-- Reduce num_workers to 0 (Windows performance)
-- Use GPU: set `trainer.accelerator=gpu` (requires CUDA)
-- Reduce max_epochs
+### Training Too Slow (~0.02 it/s / hours per epoch)
+- **num_workers must be 0 on Windows** — the dataset is in RAM, so spawned workers each duplicate it and thrash. `configs/csgo/*.yaml` now default to 0; if you edited them back up, set `train_num_workers`/`other_num_workers` to 0 and restart.
+- Confirm the GPU is actually used: `python -c "import torch;print(torch.cuda.is_available())"` must be `True` (cu128 torch — see Environment Setup).
+- Reduce max_epochs / sequence_length for quick smoke tests.
 
 ---
 
@@ -519,6 +544,7 @@ Automatically removes bad files from split file.
 | `train_cnn_lstm.bat` | RGB-only training script |
 | `train_cnn_lstm_rgbd.bat` | RGB+Depth training script |
 | `train_with_depth.py` | Depth augmentation helper |
+| `recreate_venv.bat` | Rebuild `.venv` (Python 3.11 + torch 2.7.0 cu128, Blackwell) |
 
 ---
 
@@ -549,4 +575,4 @@ Automatically removes bad files from split file.
 ---
 
 **Last Updated**: August 7, 2026
-**Status**: Ready for training
+**Status**: Ready for training (Windows/Blackwell env documented; DataLoader workers set to 0)
