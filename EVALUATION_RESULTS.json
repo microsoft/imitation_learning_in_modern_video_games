@@ -1,0 +1,20 @@
+{
+  "model": "Pretrained: ak47_sub_55k_drop_d4_dmexpert_28",
+  "dataset": "CS:GO Deathmatch (52 files, 52k frames)",
+  "evaluation_frames": 3000,
+  "evaluation_files": 3,
+  "metrics": {
+    "action_entropy": 0.12028471380472183,
+    "mean_activation": 0.06217646971344948,
+    "std_activation": 0.17579737305641174,
+    "button_sparsity": 0.11133333333333334,
+    "mouse_sparsity": 0.06297530864197531,
+    "action_continuity": 0.9474073052406311
+  },
+  "action_shape": [
+    3000,
+    51
+  ],
+  "action_dim": 51,
+  "notes": "Metrics computed from ground-truth actions in dataset (no model inference)"
+}
