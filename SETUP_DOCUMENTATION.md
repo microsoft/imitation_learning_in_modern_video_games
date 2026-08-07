@@ -245,6 +245,212 @@ python extract_depth_from_hdf5.py
 
 ---
 
+## Data Modification Guide
+
+### Core Data Loading Files
+
+#### 1. **pixelbc/data/data_parsers.py** (Frame & Action Loading)
+Main file for loading frames from HDF5 and preprocessing images.
+
+```python
+# Line ~375: get_all_data(filename)
+def get_all_data(self, filename):
+    """Load RGB frames and action labels from HDF5"""
+    with h5py.File(filename, "r") as f:
+        for i in range(num_frames):
+            frame = f[f'frame_{i}_x'][:]  # Load image
+            action = f[f'frame_{i}_y'][:]  # Load action
+            # Modify here to change frame/action preprocessing
+```
+
+**Common modifications:**
+- Normalize frames to [-1, 1] instead of [0, 1]
+- Add color space conversion (RGB → HSV, LAB)
+- Apply Gaussian blur or other filters
+- Adjust action scaling or discretization
+
+#### 2. **pixelbc/data/datamodule.py** (Batch Creation & Augmentation)
+Controls PyTorch DataLoader, batching, and data augmentation.
+
+```python
+# Line ~21: BCDataSet.__init__()
+def __init__(self, data_parser, data_files):
+    for data_file in data_files:
+        self.data_by_file[data_file] = self.data_parser.get_all_data(data_file)
+        # Modify here to add augmentation (crop, rotate, noise)
+
+# Line ~83: train_dataloader()
+def train_dataloader(self):
+    return DataLoader(
+        self.train_set,
+        batch_size=self.data_config.batch_size,
+        # Modify batch creation, collate_fn for custom batching
+    )
+```
+
+**Common modifications:**
+- Add data augmentation (RandomCrop, ColorJitter, RandomRotate)
+- Custom collate function for padding sequences
+- Hard negative mining (focus on difficult examples)
+- Class weighting (balance rare actions)
+
+#### 3. **pixelbc/data/csgo_data_parser_rgbd.py** (RGB+Depth Loading)
+Custom parser for 4-channel input (RGB + grayscale depth).
+
+```python
+# Modify to add/remove depth or other modalities
+def get_all_data(self, filename):
+    rgb = f[f'frame_{i}_x'][:]      # 3 channels
+    depth = f[f'depth/frame_{i}'][:] # 1 channel
+    frame = np.concatenate([rgb, depth], axis=-1)  # 4 channels
+```
+
+**Common modifications:**
+- Add optical flow as additional channel
+- Use depth for auxiliary task learning
+- Combine multiple sensors/modalities
+
+#### 4. **pixelbc/data/paper_data_split/csgo_dm_train_files.txt**
+Text file listing which HDF5 files to use for training.
+
+```
+hdf5_dm_july2021_1.hdf5
+hdf5_dm_july2021_2.hdf5
+hdf5_dm_july2021_3.hdf5
+...
+```
+
+**How to modify:**
+- Remove files to train on smaller dataset
+- Add/remove specific map types
+- Create separate train/val/test splits
+- Run `check_hdf5_files.py` after editing to validate
+
+---
+
+### Data Modification Examples
+
+#### Example 1: Add Image Augmentation
+
+**File**: `pixelbc/data/datamodule.py` (Line ~20)
+
+```python
+from torchvision import transforms
+
+class BCDataSet(Dataset):
+    def __init__(self, data_parser, data_files):
+        # Add augmentation pipeline
+        self.augment = transforms.Compose([
+            transforms.RandomCrop(size=(128, 128)),
+            transforms.ColorJitter(brightness=0.2, contrast=0.2),
+            transforms.RandomRotation(degrees=5),
+        ])
+        
+        for data_file in data_files:
+            self.data_by_file[data_file] = self.data_parser.get_all_data(data_file)
+    
+    def __getitem__(self, idx):
+        inputs_seq, actions_seq = ... # Get data
+        # Apply augmentation per sequence
+        inputs_seq = torch.stack([
+            self.augment(torch.from_numpy(frame).permute(2,0,1))
+            for frame in inputs_seq
+        ])
+        return inputs_seq, actions_seq
+```
+
+#### Example 2: Normalize Images to [-1, 1]
+
+**File**: `pixelbc/data/data_parsers.py` (Line ~375)
+
+```python
+def get_all_data(self, filename):
+    with h5py.File(filename, "r") as f:
+        for i in range(num_frames):
+            frame = f[f'frame_{i}_x'][:]
+            # Normalize from [0, 255] to [-1, 1]
+            frame = (frame.astype(np.float32) / 127.5) - 1.0
+            inputs.append(frame)
+```
+
+#### Example 3: Custom Data Split (80/10/10 Train/Val/Test)
+
+**Create file**: `pixelbc/data/paper_data_split/csgo_dm_train_files_80.txt`
+
+```
+hdf5_dm_july2021_1.hdf5
+hdf5_dm_july2021_2.hdf5
+...
+hdf5_dm_july2021_41.hdf5
+```
+
+Then create `csgo_dm_val_files_10.txt` and `csgo_dm_test_files_10.txt`
+
+**Update config**:
+```yaml
+data:
+  train_split_file_path: paper_data_split/csgo_dm_train_files_80.txt
+  validation_split_file_path: paper_data_split/csgo_dm_val_files_10.txt
+  test_split_file_path: paper_data_split/csgo_dm_test_files_10.txt
+```
+
+#### Example 4: Add Optical Flow Channel
+
+**Create file**: `pixelbc/data/optical_flow_parser.py`
+
+```python
+import cv2
+
+class CSGODataParserWithFlow:
+    def get_all_data(self, filename):
+        with h5py.File(filename, "r") as f:
+            prev_frame = None
+            for i in range(num_frames):
+                frame = f[f'frame_{i}_x'][:]
+                
+                if prev_frame is not None:
+                    # Compute optical flow
+                    flow = cv2.calcOpticalFlowFarneback(
+                        cv2.cvtColor(prev_frame, cv2.COLOR_RGB2GRAY),
+                        cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY),
+                        None, 0.5, 3, 15, 3, 5, 1.2, 0
+                    )
+                    # Add as 2-channel input (Fx, Fy)
+                    frame = np.concatenate([frame, flow], axis=-1)  # 5 channels
+                
+                inputs.append(frame)
+                prev_frame = frame[:, :, :3]  # Keep only RGB for next iteration
+```
+
+---
+
+### Performance Tips for Data Loading
+
+| Optimization | Impact | Difficulty |
+|--------------|--------|------------|
+| Increase `num_workers` | ↑↑ Speed | Easy |
+| Enable GPU | ↑↑↑ Speed | Easy |
+| Reduce `prefetch_factor` | ↓ Memory | Easy |
+| Cache frames in RAM | ↑↑ Speed | Medium |
+| Use mixed precision | ↑ Speed | Easy |
+| Parallelize augmentation | ↑ Speed | Medium |
+| Pre-compute depth maps | ↑ Speed | Hard |
+| Create data index | ↑ Speed | Medium |
+
+**Fastest config:**
+```yaml
+data:
+  train_num_workers: 8          # Parallel loading
+  prefetch_factor: 4
+  batch_size: 64                # Larger batches on GPU
+
+trainer:
+  accelerator: gpu
+  precision: 16-mixed           # Mixed precision
+```
+
+---
+
 ## Troubleshooting
 
 ### Corrupted HDF5 Files

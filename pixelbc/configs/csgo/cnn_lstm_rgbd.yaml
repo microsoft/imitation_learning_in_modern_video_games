@@ -45,13 +45,13 @@ data:
     - 0.575
     - 0.845
     - 1.0
-  batch_size: 32
+  batch_size: 64
   sequence_length: 100
   downsample: 2
-  prefetch_factor: 2
-  train_num_workers: 1
-  other_num_workers: 1
-  decord_num_workers: 1
+  prefetch_factor: 4
+  train_num_workers: 8
+  other_num_workers: 2
+  decord_num_workers: 2
 
 model:
   encoder:

@@ -13,6 +13,8 @@ log:
   weights_log_scalars: False
 
 trainer:
+  accelerator: gpu
+  devices: 1
   profiler: simple
   max_steps: 500000
   gradient_clip_algorithm: norm

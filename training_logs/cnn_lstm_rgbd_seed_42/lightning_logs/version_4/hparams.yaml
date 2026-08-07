@@ -60,10 +60,10 @@ framestacking: 1
 num_button_actions: 10
 batch_size: 32
 downsample: 2
-prefetch_factor: null
-train_num_workers: 0
-other_num_workers: 0
-decord_num_workers: 0
+prefetch_factor: 2
+train_num_workers: 1
+other_num_workers: 1
+decord_num_workers: 1
 data_config:
   game: csgo
   data_path: C:\csgo_data
@@ -91,10 +91,10 @@ data_config:
   batch_size: 32
   sequence_length: 100
   downsample: 2
-  prefetch_factor: null
-  train_num_workers: 0
-  other_num_workers: 0
-  decord_num_workers: 0
+  prefetch_factor: 2
+  train_num_workers: 1
+  other_num_workers: 1
+  decord_num_workers: 1
   image_shape:
   - 3
   - 128
@@ -156,10 +156,10 @@ model_config:
   batch_size: 32
   sequence_length: 100
   downsample: 2
-  prefetch_factor: null
-  train_num_workers: 0
-  other_num_workers: 0
-  decord_num_workers: 0
+  prefetch_factor: 2
+  train_num_workers: 1
+  other_num_workers: 1
+  decord_num_workers: 1
   image_shape:
   - 3
   - 128
