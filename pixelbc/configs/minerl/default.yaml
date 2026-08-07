@@ -21,8 +21,8 @@ trainer:
 
 data:
   game: "minerl"
-  data_path: /absolute/path/to/dataset # NEED TO BE FILLED
-  train_split_file_path: paper_data_split/minerl_6.13_treechop_train_files.txt
+  data_path: ./minerl_data
+  train_split_file_path: paper_data_split/minerl_6.13_treechop_train_files_10percent.txt
   validation_split_file_path: null
   test_split_file_path: null
   image_height: 128

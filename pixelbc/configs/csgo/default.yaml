@@ -47,8 +47,8 @@ data:
   sequence_length: 100
   downsample: 2
   prefetch_factor: 5
-  train_num_workers: 20
-  other_num_workers: 1
+  train_num_workers: 0
+  other_num_workers: 0
   decord_num_workers: 3
 
 model:

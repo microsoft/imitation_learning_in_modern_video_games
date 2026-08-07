@@ -1,0 +1,166 @@
+image_encoding_dim: 4096
+num_logits: 15
+image_shape:
+- 3
+- 128
+- 128
+sequence_length: 100
+num_actions: 15
+num_joystick_actions: 4
+num_trigger_actions: 1
+discretise_joystick: false
+discretise_joystick_bins:
+- -1.0
+- -0.845
+- -0.575
+- -0.325
+- 0.0
+- 0.325
+- 0.575
+- 0.845
+- 1.0
+encoder:
+  type: cnn
+  cnn_encoder_dim: 4
+  cnn_encoder_start_channels: 32
+  mlp_encoder_hidden_size: 128
+  mlp_encoder_num_layers: 3
+  vit_encoder_patch_size: 16
+  vit_encoder_dim: 512
+  vit_encoder_num_layers: 4
+  vit_encoder_num_heads: 12
+  vit_encoder_mlp_dim: 512
+  use_image_augmentation: false
+pretrained_encoder: null
+bc_policy:
+  type: lstm
+  hidden_size: 512
+  num_layers: 4
+  lstm_hidden_size: 512
+  lstm_num_layers: 2
+  gpt_num_layers: 4
+  gpt_num_heads: 8
+  gpt_embedding_dim: 512
+  gpt_use_positional_encoding: false
+  gpt_bias: true
+  gpt_is_causal: true
+learning_rate: 0.0003
+joystick_loss_weight: 1.0
+button_loss_weight: 1.0
+train_from_embeddings: false
+lr_warmup_steps: 0
+game: csgo
+data_path: C:\csgo_data
+train_split_file_path: paper_data_split/csgo_dm_train_files.txt
+validation_split_file_path: null
+test_split_file_path: null
+image_height: 128
+image_width: 128
+framestacking: 1
+num_button_actions: 10
+batch_size: 64
+downsample: 2
+prefetch_factor: 4
+train_num_workers: 8
+other_num_workers: 2
+decord_num_workers: 2
+data_config:
+  game: csgo
+  data_path: C:\csgo_data
+  train_split_file_path: paper_data_split/csgo_dm_train_files.txt
+  validation_split_file_path: null
+  test_split_file_path: null
+  image_height: 128
+  image_width: 128
+  framestacking: 1
+  num_actions: 15
+  num_joystick_actions: 4
+  num_trigger_actions: 1
+  num_button_actions: 10
+  discretise_joystick: false
+  discretise_joystick_bins:
+  - -1.0
+  - -0.845
+  - -0.575
+  - -0.325
+  - 0.0
+  - 0.325
+  - 0.575
+  - 0.845
+  - 1.0
+  batch_size: 64
+  sequence_length: 100
+  downsample: 2
+  prefetch_factor: 4
+  train_num_workers: 8
+  other_num_workers: 2
+  decord_num_workers: 2
+  image_shape:
+  - 3
+  - 128
+  - 128
+model_config:
+  encoder:
+    type: cnn
+    cnn_encoder_dim: 4
+    cnn_encoder_start_channels: 32
+    mlp_encoder_hidden_size: 128
+    mlp_encoder_num_layers: 3
+    vit_encoder_patch_size: 16
+    vit_encoder_dim: 512
+    vit_encoder_num_layers: 4
+    vit_encoder_num_heads: 12
+    vit_encoder_mlp_dim: 512
+    use_image_augmentation: false
+  pretrained_encoder: null
+  bc_policy:
+    type: lstm
+    hidden_size: 512
+    num_layers: 4
+    lstm_hidden_size: 512
+    lstm_num_layers: 2
+    gpt_num_layers: 4
+    gpt_num_heads: 8
+    gpt_embedding_dim: 512
+    gpt_use_positional_encoding: false
+    gpt_bias: true
+    gpt_is_causal: true
+  learning_rate: 0.0003
+  lr_warmup_steps: 0
+  joystick_loss_weight: 1.0
+  button_loss_weight: 1.0
+  train_from_embeddings: false
+  game: csgo
+  data_path: C:\csgo_data
+  train_split_file_path: paper_data_split/csgo_dm_train_files.txt
+  validation_split_file_path: null
+  test_split_file_path: null
+  image_height: 128
+  image_width: 128
+  framestacking: 1
+  num_actions: 15
+  num_joystick_actions: 4
+  num_trigger_actions: 1
+  num_button_actions: 10
+  discretise_joystick: false
+  discretise_joystick_bins:
+  - -1.0
+  - -0.845
+  - -0.575
+  - -0.325
+  - 0.0
+  - 0.325
+  - 0.575
+  - 0.845
+  - 1.0
+  batch_size: 64
+  sequence_length: 100
+  downsample: 2
+  prefetch_factor: 4
+  train_num_workers: 8
+  other_num_workers: 2
+  decord_num_workers: 2
+  image_shape:
+  - 3
+  - 128
+  - 128

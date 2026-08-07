@@ -582,3 +582,15 @@ $RECYCLE.BIN/
 *.lnk
 
 # End of https://www.toptal.com/developers/gitignore/api/python,vs,linux,windows,git
+# Training outputs
+training_logs/
+*.ckpt
+*.pt
+lightning_logs/
+
+# Large data files
+csgo_data/
+*.hdf5
+depth_maps/
+vis_video_depth/
+trained_models/
