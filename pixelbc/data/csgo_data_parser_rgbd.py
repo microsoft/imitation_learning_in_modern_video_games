@@ -1,9 +1,11 @@
 #!/usr/bin/env python
 """CSGO data parser with RGB+Depth (4-channel) support"""
 
+import argparse
 import h5py
 import numpy as np
 from pathlib import Path
+from omegaconf import OmegaConf
 
 class CSGODataParserRGBD:
     """Load CSGO data as 4-channel (RGB+Depth) instead of 3-channel RGB"""
@@ -69,3 +71,52 @@ class CSGODataParserRGBD:
         actions_seq = actions[start_index:start_index + seq_len:downsample]
 
         return inputs_seq, actions_seq
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Parse CSGO demo to HDF5")
+    parser.add_argument("--demo", required=True, help="Path to CSGO demo file (.dem or .h5)")
+    parser.add_argument("--output", required=True, help="Output directory for parsed data")
+    args = parser.parse_args()
+
+    demo_path = Path(args.demo)
+    output_dir = Path(args.output)
+
+    print(f"Demo input: {demo_path}")
+    print(f"Output dir: {output_dir}")
+
+    if not demo_path.exists():
+        print(f"ERROR: Demo file not found: {demo_path}")
+        return 1
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    try:
+        # If demo is .h5, copy it to output (assumes it's already in correct format)
+        if demo_path.suffix == '.h5':
+            print(f"Loading HDF5: {demo_path}")
+            with h5py.File(demo_path, 'r') as f:
+                print(f"  Keys in file: {list(f.keys())[:10]}")
+                # Copy to output
+                output_file = output_dir / "data.h5"
+                with h5py.File(output_file, 'w') as out_f:
+                    for key in f.keys():
+                        f.copy(key, out_f)
+                print(f"  Copied to {output_file}")
+        else:
+            print(f"ERROR: Only .h5 files supported (got {demo_path.suffix})")
+            print("  .dem files require external conversion tool")
+            return 1
+
+        print(f"✓ Parse complete. Output: {output_dir}")
+        return 0
+
+    except Exception as e:
+        print(f"ERROR: {e}")
+        import traceback
+        traceback.print_exc()
+        return 1
+
+
+if __name__ == "__main__":
+    exit(main())

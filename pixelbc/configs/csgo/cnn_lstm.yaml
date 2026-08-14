@@ -4,8 +4,8 @@ resume_from: null
 
 log:
   minimal_metrics: True
-  checkpoint_epoch_freq: 100
-  checkpoint_top_k_validation: 0
+  checkpoint_epoch_freq: 5
+  checkpoint_top_k_validation: 3
   checkpoint_last: True
   device_stats_monitor: True
   weights: False
@@ -45,13 +45,13 @@ data:
     - 0.575
     - 0.845
     - 1.0
-  batch_size: 32
+  batch_size: 128
   sequence_length: 100
   downsample: 2
   prefetch_factor: 5
-  train_num_workers: 0
-  other_num_workers: 0
-  decord_num_workers: 3
+  train_num_workers: 8
+  other_num_workers: 4
+  decord_num_workers: 4
 
 model:
   encoder:

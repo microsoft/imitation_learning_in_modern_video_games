@@ -85,30 +85,31 @@ CSGO_ACTION_MAP = {
 CSGO_BUTTON_ORDERING = list(CSGO_ACTION_MAP.values())[5:]
 
 
+# Keyboard keys kept as the model's button targets. Raw frame_i_y[0:11] =
+# w,s,a,d,space,ctrl,shift,1,2,3,r; we keep 10 (drop ctrl at index 5, ~0-3% and
+# often absent). This list IS the model's button-output order.
+CSGO_KEY_INDICES = [0, 1, 2, 3, 4, 6, 7, 8, 9, 10]
+CSGO_KEY_NAMES = ["w", "s", "a", "d", "space", "shift", "1", "2", "3", "r"]
+
+
 def preprocess_csgo_action_line(line, discretize_continuous_actions):
-    """Turn CSGO hdf5 action line into the same format used by Dungeons"""
+    """Turn a CSGO hdf5 action line into the model's [joystick(4), trigger(1),
+    button(10)] format:
+        joystick = [0, 0, mouse_x, mouse_y]   (aim in indices 2,3)
+        trigger  = fire (left click)
+        buttons  = the 10 keyboard keys (w,s,a,d,space,shift,1,2,3,r)
+
+    NOTE: the original version discarded ALL keyboard keys (CSGO_ACTION_MAP mapped
+    them to None -> 0); this keeps them so the model can learn movement + fire.
+    """
     assert not discretize_continuous_actions, "Discretized continuous actions not supported for CSGO"
-    actions_data = []
     mouse_x_onehot = line[CSGO_N_KEYS + CSGO_N_CLICKS : CSGO_N_KEYS + CSGO_N_CLICKS + CSGO_N_MOUSE_X]
     mouse_y_onehot = line[CSGO_N_KEYS + CSGO_N_CLICKS + CSGO_N_MOUSE_X : CSGO_N_KEYS + CSGO_N_CLICKS + CSGO_N_MOUSE_X + CSGO_N_MOUSE_Y]
-    mouse_x_continuous_normalized = (mouse_x_onehot @ CSGO_MOUSE_X_BIN_CENTERS).item() / CSGO_MOUSE_X_NORMALIZER
-    mouse_y_continuous_normalized = (mouse_y_onehot @ CSGO_MOUSE_Y_BIN_CENTERS).item() / CSGO_MOUSE_Y_NORMALIZER
-    mouse_click = line[CSGO_N_KEYS].item()
-    for action, csgo_action_name in CSGO_ACTION_MAP.items():
-        if csgo_action_name is None:
-            # Just add 0, this is an ignored button
-            actions_data.append(0)
-            continue
-
-        if csgo_action_name == CSGO_ACTIONS.MOUSE_X:
-            actions_data.append(mouse_x_continuous_normalized)
-        elif csgo_action_name == CSGO_ACTIONS.MOUSE_Y:
-            actions_data.append(mouse_y_continuous_normalized)
-        elif csgo_action_name == CSGO_ACTIONS.SHOOT:
-            actions_data.append(mouse_click)
-        else:
-            raise ValueError(f"Unknown action name {csgo_action_name}")
-    return np.array(actions_data, dtype=np.float32)
+    mouse_x = (mouse_x_onehot @ CSGO_MOUSE_X_BIN_CENTERS).item() / CSGO_MOUSE_X_NORMALIZER
+    mouse_y = (mouse_y_onehot @ CSGO_MOUSE_Y_BIN_CENTERS).item() / CSGO_MOUSE_Y_NORMALIZER
+    fire = float(line[CSGO_N_KEYS])  # left mouse click at index CSGO_N_KEYS (=11)
+    keys = [float(line[i]) for i in CSGO_KEY_INDICES]
+    return np.array([0.0, 0.0, mouse_x, mouse_y, fire, *keys], dtype=np.float32)
 
 
 def csgo_model_output_to_csgo_action(joystick_actions, trigger_actions, button_actions):

@@ -1,0 +1,11 @@
+# Lean RGB+Depth: SAME small RGB architecture as default.yaml
+# (cnn_encoder_dim=2, start_channels=8, MLP head), plus a REAL 4th depth
+# input channel (use_depth=true). Depth adds only ~512 params (conv1: 3->4
+# input channels) -- not the 6.7M of the old "cnn_lstm_rgbd" (which was just a
+# bigger RGB model that never even read depth).
+# Requires depth in the HDF5 files: run make_depth.py on the train + val splits.
+data:
+  data_path: C:\csgo_data
+  train_split_file_path: paper_data_split/csgo_dm_train_files.txt
+  validation_split_file_path: paper_data_split/csgo_dm_val_files.txt
+  use_depth: true

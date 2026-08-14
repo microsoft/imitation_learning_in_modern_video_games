@@ -63,6 +63,11 @@ class BCModel(pl.LightningModule):
         # define encoder
         self.image_encoder = get_encoder(image_shape, encoder, pretrained_encoder)
         self.image_encoding_dim = self.image_encoder.get_embedding_dim()
+        # RGB+D (embedding-concat): the loader concatenates a depth embedding onto
+        # the RGB embedding (data.depth_embedding=True), doubling the policy input.
+        # depth_embedding is preserved in hparams, so 1536 checkpoints reload correctly.
+        if kwargs.get("depth_embedding"):
+            self.image_encoding_dim *= 2
 
         # define BC models
         if self.discretise_joystick:

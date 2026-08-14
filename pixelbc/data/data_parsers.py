@@ -427,6 +427,7 @@ class CSGOEmbeddingParser(CSGOImageParser):
         discretise_joystick,
         downsample,
         decord_num_workers=1,
+        depth_encoder_dirname=None,
     ):
         super().__init__(
             preprocess_fn,
@@ -438,6 +439,9 @@ class CSGOEmbeddingParser(CSGOImageParser):
             decord_num_workers,
         )
         self.encoder_dirname = encoder_dirname
+        # RGB+D: if set, load the depth embedding and concat it onto the RGB
+        # embedding along the feature axis (768 + 768 -> 1536).
+        self.depth_encoder_dirname = depth_encoder_dirname
 
     def get_all_data(self, action_filename):
         """Return inputs and outputs for given action file as torch tensors
@@ -456,6 +460,10 @@ class CSGOEmbeddingParser(CSGOImageParser):
 
         embedding_filename = get_embedding_file(self.encoder_dirname, action_filename)
         embeddings = self._load_embedding(embedding_filename)
+        if self.depth_encoder_dirname is not None:
+            depth_filename = get_embedding_file(self.depth_encoder_dirname, action_filename)
+            depth_embeddings = self._load_embedding(depth_filename)
+            embeddings = np.concatenate([embeddings, depth_embeddings], axis=-1)
 
         return torch.from_numpy(embeddings).to(dtype=DataParser.EMBEDDING_TYPE), torch.from_numpy(actions).to(dtype=DataParser.ACTION_TYPE)
 
@@ -517,6 +525,11 @@ def get_data_parser(
         )
     elif game == "csgo":
         if train_from_embeddings:
+            # RGB+D: data.depth_embedding=True -> also load the dino_depth embedding
+            # and concat onto the RGB embedding (768 + 768 -> 1536).
+            depth_encoder_dirname = None
+            if kwargs.get("depth_embedding", False):
+                depth_encoder_dirname = get_pretrained_encoder_dirname("dino_depth", model_config.pretrained_encoder.name)
             return CSGOEmbeddingParser(
                 encoder_dirname,
                 preprocess_fn,
@@ -526,6 +539,7 @@ def get_data_parser(
                 discretise_joystick,
                 downsample,
                 decord_num_workers,
+                depth_encoder_dirname=depth_encoder_dirname,
             )
         return CSGOImageParser(
             preprocess_fn,

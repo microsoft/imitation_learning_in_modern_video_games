@@ -32,6 +32,29 @@ Fix (already applied):
 
 With the data already in RAM, `num_workers=0` (single process, no copy, no IO wait) is the **fastest** path here. A worker change only takes effect on a **fresh run** — restart training to pick it up.
 
+### torch build: CPU vs cu128 (GPU)
+The venv currently has **`torch 2.6.0+cpu` / `torchvision 0.21.0+cpu`** — because `requirements.txt` pins `torch==2.6.0` + `torchvision==0.21.0` under `--find-links .../torch_stable.html`, which resolves to **CPU** wheels. Consequence: `trainer.accelerator=gpu` fails with **`MisconfigurationException: No supported gpu backend found!`** (torch can't see CUDA). CPU training works as-is.
+
+To train on the 5090 (Blackwell sm_120), replace torch with the **cu128** build (do it *before* `-r requirements.txt`, and don't let requirements re-pin it back to CPU afterwards):
+```
+uv pip install --python <this-venv>\Scripts\python.exe --index-url https://download.pytorch.org/whl/cu128 torch==2.7.0 torchvision==0.22.0
+```
+This needs **~5–6 GB free disk** and **no Python process holding the venv** (see the gotcha below).
+
+### Gotcha: interrupted torch install → corrupted `torchvision` metadata
+Symptom: a `TypeError: expected string or bytes-like object, got 'NoneType'` deep in `lightning_utilities/.../imports.py` (`Version(_version("torchvision"))`), which kills every `import lightning` / `torchmetrics`.
+
+Cause: a torch/torchvision reinstall was interrupted (a running Python held `torchvision/_C.pyd`, and/or disk hit ~0). uv's uninstall step had already **emptied `torchvision-<ver>.dist-info/`** before it aborted, so `importlib.metadata.version("torchvision")` returns `None` even though `import torchvision` still works (that version comes from the package's own `version.py`).
+
+Fix without a reinstall (no disk needed) — recreate the metadata file:
+```
+<venv>\Lib\site-packages\torchvision-0.21.0.dist-info\METADATA:
+    Metadata-Version: 2.1
+    Name: torchvision
+    Version: 0.21.0
+```
+`version("torchvision")` then resolves and lightning imports again. A later `pip install torchvision==<ver>` regenerates the dist-info fully. **Prevention:** close all Python using the venv and ensure ≥6 GB free *before* any torch (re)install.
+
 ---
 
 ## Directory Structure
@@ -575,4 +598,4 @@ Automatically removes bad files from split file.
 ---
 
 **Last Updated**: August 7, 2026
-**Status**: Ready for training (Windows/Blackwell env documented; DataLoader workers set to 0)
+**Status**: Ready for CPU training (venv repaired: torchvision metadata restored). GPU needs the cu128 torch swap (see "torch build: CPU vs cu128") — blocked on free disk.

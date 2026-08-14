@@ -229,6 +229,15 @@ with the following argument options:
 
 The rollout will start and the agent will start to play the game. The rollout terminates, when the time limit of 5 minutes is reached and by default 3 rollouts will be executed in sequence.
 
+> **This fork (DINO RGB / RGB+D models):** the stock `rollout.py` above **cannot** play the DINO models here — they were trained `train_from_embeddings=True`, and stock `act()` asserts that's `False` and only injects mouse+fire (no WASD movement). Use the custom scripts instead, after getting into a map (`map aimtraindriving_v3 custom` via console, or Deathmatch → Dust II):
+> ```powershell
+> # RGB DINO (~160 FPS) — start here
+> python pixelbc\online_rollout\csgo_rgb_rollout.py --checkpoint training_logs\aim_expert_dino_vitb_seed_0\models\last.ckpt --fps 16
+> # RGB+D DINO (~24 FPS, adds Depth-Anything-V2)
+> python pixelbc\online_rollout\csgo_depth_rollout.py --checkpoint training_logs\aim_expert_dino_vitb_rgbd_seed_0\models\last.ckpt --fps 16 --depth_anything_dir C:\workspace\NAVIGATION\Depth-Anything-V2
+> ```
+> See [FINDINGS.md](FINDINGS.md) (“Live rollout” + “Commands”) for the full setup and play procedure.
+
 
 # Pre-Compute Embeddings for Pre-Trained Visual Encoders
 Pre-trained visual encoders are frozen during BC training and, thus, are not further trained. This means, their embeddings are fixed and can be pre-computed for all data points in the dataset. Pre-computing these embeddings can be desirable whenever the dataset is comparably small, so pre-computing embeddings is feasible. Once embeddings are computed in this manner, they can be loaded during training and, thus, do not need to be computed on-the-fly during training. This can significantly speed-up training, in particular for larger pre-trained models which are comparably expensive to compute embeddings with. To pre-compute embeddings for a dataset, run

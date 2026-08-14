@@ -52,7 +52,8 @@ def _check_and_update_config(config):
         assert (
             "image_width" in config.data and "image_height" in config.data and "framestacking" in config.data
         ), "Data config missing `image_shape` or `image_width` and `image_height` and `framestacking`"
-        config.data.image_shape = (3 * config.data.framestacking, config.data.image_height, config.data.image_width)
+        per_frame_channels = 4 if config.data.get("use_depth", False) else 3
+        config.data.image_shape = (per_frame_channels * config.data.framestacking, config.data.image_height, config.data.image_width)
     data_config = config.data
 
     # set mixed precision in lightning trainer config if available
