@@ -197,3 +197,20 @@ When finetuning `ak47_sub_55k_drop_d4_dmexpert_28` on your 52 HDF5 files:
 **Status**: ✅ Ready for training  
 **Data Quality**: ✅ Excellent (expert demonstrations, high continuity)  
 **Model Selection**: ✅ Optimal (pretrained expert-finetuned model)
+
+## Model comparison — latest validation (aim R²)
+
+Data: 408 train / 10 val files. aim R² is the cross-comparable metric (val_loss
+scales differ by config). Offline R² is a weak proxy — real metric is in-game KPM.
+
+| model | encoder | latest ep | best aim-x R² | aim-y R² (latest) | verdict |
+|---|---|---|---|---|---|
+| **ResNet 128 +Aug** | end-to-end CNN | 9 | **+0.044** (ep8) | −0.102 | only model **positive** on aim-x; lopsided y |
+| ViT 128 +Aug | end-to-end ViT | 8 | −0.012 (ep3) | −0.005 | plateaued near zero, both axes |
+| DINO spatial | frozen DINOv2 | 8 | −0.001 (fluke) | −0.053 | flat, does not learn aim |
+| DINO RGB+D | frozen DINOv2 (+depth) | 58 | −0.101 | −0.117 | worst; 58 epochs, never learned |
+
+**Findings**
+- End-to-end (ResNet/ViT) >> frozen-DINO on aim — matches Schäfer et al. (arXiv:2312.02312): frozen encoders fail on CS:GO.
+- ResNet 128 +Aug is the paper's CS:GO winner (17.4 KPM) and the only one here with a **positive** aim axis.
+- More data/epochs did NOT rescue DINO RGB+D (flat-negative across 58 epochs).

@@ -1,4 +1,5 @@
 import datetime
+import glob
 import os
 import sys
 
@@ -69,7 +70,20 @@ def main(argv):
         limit_val_batches=0.0 if not has_validation_data(config) else None,
         strategy="auto",
     )
-    trainer.fit(model=model, datamodule=dm, **config.fit if "fit" in config and config.fit is not None else {})
+    # Auto-resume: pick up the NEWEST *.ckpt in this run's own checkpoint dir
+    # (restores weights + optimizer + epoch). An explicit fit.ckpt_path on the CLI
+    # wins; resume_from=scratch (or none) forces a fresh run.
+    fit_kwargs = dict(config.fit) if "fit" in config and config.fit is not None else {}
+    resume_from = str(config.resume_from) if "resume_from" in config else ""
+    if not fit_kwargs.get("ckpt_path") and resume_from not in ("scratch", "none"):
+        existing = glob.glob(os.path.join(checkpoint_dir, "*.ckpt"))
+        if existing:
+            newest = max(existing, key=os.path.getmtime)
+            print(f"Auto-resuming from latest checkpoint: {newest}")
+            fit_kwargs["ckpt_path"] = newest
+        else:
+            print("No checkpoint found in run dir -- starting fresh from epoch 0.")
+    trainer.fit(model=model, datamodule=dm, **fit_kwargs)
     # test model if test data is provided
     if has_test_data(config):
         trainer.test(model=model, datamodule=dm)

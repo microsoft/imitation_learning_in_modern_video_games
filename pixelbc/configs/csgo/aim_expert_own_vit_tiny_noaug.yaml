@@ -21,7 +21,7 @@ model:
     lstm_hidden_size: 512
     lstm_num_layers: 2
   learning_rate: 3e-4
-  lr_warmup_steps: 25000
+  lr_warmup_steps: 2000
   joystick_loss_weight: 1.0
   button_loss_weight: 1.0
   train_from_embeddings: False
