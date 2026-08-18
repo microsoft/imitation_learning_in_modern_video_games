@@ -55,8 +55,10 @@ class BCDataModule(pl.LightningDataModule):
         if self.data_config.train_split_file_path is not None:
             train_files = get_file_paths_from_split_file(self.data_config.train_split_file_path, self.base_data_path)
             if len(train_files) == 0:
+                print(f"WARNING: train_split_file_path {self.data_config.train_split_file_path} resolved to 0 files.")
                 self.train_set = None
-            self.train_set = BCDataSet(self.data_parser, train_files)
+            else:
+                self.train_set = BCDataSet(self.data_parser, train_files)
         else:
             self.train_set = None
 
@@ -65,16 +67,20 @@ class BCDataModule(pl.LightningDataModule):
         if self.data_config.validation_split_file_path is not None:
             val_files = get_file_paths_from_split_file(self.data_config.validation_split_file_path, self.base_data_path)
             if len(val_files) == 0:
+                print(f"WARNING: validation_split_file_path {self.data_config.validation_split_file_path} resolved to 0 files.")
                 self.val_set = None
-            self.val_set = BCDataSet(self.data_parser, val_files)
+            else:
+                self.val_set = BCDataSet(self.data_parser, val_files)
         else:
             self.val_set = None
 
         if self.data_config.test_split_file_path is not None:
             test_files = get_file_paths_from_split_file(self.data_config.test_split_file_path, self.base_data_path)
             if len(test_files) == 0:
+                print(f"WARNING: test_split_file_path {self.data_config.test_split_file_path} resolved to 0 files.")
                 self.test_set = None
-            self.test_set = BCDataSet(self.data_parser, test_files)
+            else:
+                self.test_set = BCDataSet(self.data_parser, test_files)
         else:
             self.test_set = None
 

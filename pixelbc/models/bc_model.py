@@ -20,7 +20,7 @@ from pixelbc.models.utils.train_metrics import (
     get_discrete_joystick_metrics, get_trigger_metrics)
 
 # predict_depth target resolution -- must match PREDICT_DEPTH_SIZE in data_parsers.py
-PREDICT_DEPTH_SIZE = 224
+PREDICT_DEPTH_SIZE = 64
 
 
 class BCModel(pl.LightningModule):
