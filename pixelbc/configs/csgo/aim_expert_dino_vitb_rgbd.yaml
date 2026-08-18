@@ -6,6 +6,10 @@ data:
   # RGB+D: loader concats a frozen-DINOv2 depth embedding onto the RGB embedding
   # (embeddings/dino_depth/dinov2_vitb14). Only difference from the RGB config.
   depth_embedding: true
+  # require_depth_embedding: true (default) crashes if a file's depth embedding
+  # is missing. Set false to fall back to zeros for that file (depth off) with a
+  # warning instead -- useful when only some clips have depth embeddings generated.
+  # require_depth_embedding: false
 
 
 model:

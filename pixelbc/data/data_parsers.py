@@ -1,4 +1,5 @@
 import json
+import warnings
 from abc import ABC, abstractmethod
 from collections import deque
 
@@ -428,6 +429,7 @@ class CSGOEmbeddingParser(CSGOImageParser):
         downsample,
         decord_num_workers=1,
         depth_encoder_dirname=None,
+        require_depth_embedding=True,
     ):
         super().__init__(
             preprocess_fn,
@@ -442,6 +444,26 @@ class CSGOEmbeddingParser(CSGOImageParser):
         # RGB+D: if set, load the depth embedding and concat it onto the RGB
         # embedding along the feature axis (768 + 768 -> 1536).
         self.depth_encoder_dirname = depth_encoder_dirname
+        # require_depth_embedding=False -> a file missing its depth embedding
+        # falls back to RGB-only for that file (warns) instead of crashing.
+        # Default True preserves the old strict (assert-and-crash) behaviour.
+        self.require_depth_embedding = require_depth_embedding
+
+    def _load_depth_embeddings_or_fallback(self, rgb_embeddings, action_filename):
+        """Load the depth embedding for this file, or fall back to zeros (same shape
+        as the RGB embedding) if it's missing and require_depth_embedding is False.
+
+        Zeros (not skipping the concat) keep every file's embedding dim at the same
+        1536, so batches can still mix depth-available and depth-missing files.
+        """
+        try:
+            depth_filename = get_embedding_file(self.depth_encoder_dirname, action_filename)
+        except AssertionError:
+            if self.require_depth_embedding:
+                raise
+            warnings.warn(f"No depth embedding for {action_filename}, falling back to zeros (depth off for this file).")
+            return np.zeros_like(rgb_embeddings)
+        return self._load_embedding(depth_filename)
 
     def get_all_data(self, action_filename):
         """Return inputs and outputs for given action file as torch tensors
@@ -461,8 +483,7 @@ class CSGOEmbeddingParser(CSGOImageParser):
         embedding_filename = get_embedding_file(self.encoder_dirname, action_filename)
         embeddings = self._load_embedding(embedding_filename)
         if self.depth_encoder_dirname is not None:
-            depth_filename = get_embedding_file(self.depth_encoder_dirname, action_filename)
-            depth_embeddings = self._load_embedding(depth_filename)
+            depth_embeddings = self._load_depth_embeddings_or_fallback(embeddings, action_filename)
             embeddings = np.concatenate([embeddings, depth_embeddings], axis=-1)
 
         return torch.from_numpy(embeddings).to(dtype=DataParser.EMBEDDING_TYPE), torch.from_numpy(actions).to(dtype=DataParser.ACTION_TYPE)
@@ -540,6 +561,7 @@ def get_data_parser(
                 downsample,
                 decord_num_workers,
                 depth_encoder_dirname=depth_encoder_dirname,
+                require_depth_embedding=kwargs.get("require_depth_embedding", True),
             )
         return CSGOImageParser(
             preprocess_fn,

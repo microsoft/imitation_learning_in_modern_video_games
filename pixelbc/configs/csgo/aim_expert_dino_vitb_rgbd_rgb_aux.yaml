@@ -1,0 +1,33 @@
+seed: 0
+
+data:
+  image_height: 224
+  image_width: 224
+  # RGB+D: loader concats a frozen-DINOv2 depth embedding onto the RGB embedding
+  # (embeddings/dino_depth/dinov2_vitb14).
+  depth_embedding: true
+  # predict_rgb (must live under `data:`, not just `model:`, here -- unlike the
+  # raw-frame-only aim_expert_dino_vitb_rgb_aux.yaml -- because CSGOEmbeddingParser
+  # needs it to know to load+concat the raw RGB frame onto the embedding tensor.
+  # _check_and_update_config copies every data.* key into model.* too, so BCModel
+  # still sees it as normal.
+  predict_rgb: true
+
+
+model:
+  encoder: null
+  pretrained_encoder:
+    family: dino
+    name: dinov2_vitb14
+  bc_policy:
+    type: lstm # 'mlp', 'lstm', or 'gpt'
+    hidden_size: 512
+    num_layers: 2
+    lstm_hidden_size: 512
+    lstm_num_layers: 2
+  learning_rate: 3e-4
+  lr_warmup_steps: 0 # use no warmup
+  joystick_loss_weight: 1.0
+  button_loss_weight: 1.0
+  train_from_embeddings: True
+  rgb_loss_weight: 0.1

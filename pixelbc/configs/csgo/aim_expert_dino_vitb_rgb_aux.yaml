@@ -1,0 +1,28 @@
+seed: 0
+
+data:
+  image_height: 224
+  image_width: 224
+
+
+model:
+  encoder: null
+  pretrained_encoder:
+    family: dino
+    name: dinov2_vitb14
+  bc_policy:
+    type: lstm # 'mlp', 'lstm', or 'gpt'
+    hidden_size: 512
+    num_layers: 2
+    lstm_hidden_size: 512
+    lstm_num_layers: 2
+  learning_rate: 3e-4
+  lr_warmup_steps: 0 # use no warmup
+  joystick_loss_weight: 1.0
+  button_loss_weight: 1.0
+  # predict_rgb needs raw frames as reconstruction targets, so this must run
+  # with train_from_embeddings: False (encoder runs live, unlike the base
+  # aim_expert_dino_vitb.yaml which trains from precomputed embeddings).
+  train_from_embeddings: False
+  predict_rgb: True
+  rgb_loss_weight: 0.1
