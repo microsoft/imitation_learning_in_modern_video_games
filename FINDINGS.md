@@ -205,3 +205,246 @@ Validation every 5 epochs; checkpoints every 5 + best-val (top-3) + `last.ckpt`;
 - Root key-fix; collapse characterised; CNN depth ablation (no effect); DINO RGB (breaks collapse); **RGB+D DINO (depth helps, +1.5% acc / +5.4% recall, 8/10 wins)**; live depth rollout built + validated offline at ~24 FPS.
 - New scripts: `generate_depth_embeddings.py`, `download_csgo_data.py`/`.bat`, `csgo_depth_rollout.py`, `precompute_dino*_embeddings.bat`, `train_dino_rgb/rgbd.bat`.
 - Open (needs live game): actual in-CS:GO play quality of the RGB+D agent via `csgo_depth_rollout.py`.
+
+## Auxiliary-prediction exploration (`predict_rgb`, `predict_embedding`) — status
+
+Explored adding an auxiliary reconstruction/prediction task on top of the frozen-DINO
+embedding (does the embedding retain enough info to reconstruct the frame, or predict
+the next-step embedding). Two flavors discussed:
+
+- **`predict_rgb`** (reconstruct current-frame RGB pixels from the embedding via a
+  conv-transpose decoder, `RGBDecoder`): implemented once (wiring in `bc_model.py`,
+  `data_parsers.py`, `loss_utils.py`, plus `pixelbc/models/rgb_decoder.py` and two
+  configs — `aim_expert_dino_vitb_rgb_aux.yaml`, `aim_expert_dino_vitb_rgbd_rgb_aux.yaml`),
+  then **reverted** in `bc_model.py`/`data_parsers.py`/`loss_utils.py` back to original.
+  `rgb_decoder.py` and both `*_rgb_aux.yaml` configs are still on disk but **currently
+  non-functional** — `predict_rgb`/`rgb_loss_weight` land in `BCModel`'s `**kwargs` and
+  are silently ignored (no error, just a no-op) since the wiring that reads them was
+  reverted.
+- **`predict_embedding`** (predict next-step embedding from current embedding+action,
+  JEPA-style): only ever designed/discussed, **never implemented**. The one piece that
+  does exist: `get_embedding_prediction_metrics()` in
+  `pixelbc/models/utils/train_metrics.py` (MSE + cosine similarity between predicted
+  and target embeddings) — standalone, not called from anywhere, not logged to
+  TensorBoard, waiting for the actual prediction head + `_step()` wiring.
+
+**Checked whether this already existed elsewhere first** (before writing new code) —
+searched every branch (`main`, `depth`, `predict_depth`, `dpredict`, `train`) for
+embedding-prediction-with-accuracy: none exists. The `predict_depth`/`dpredict` branch
+names refer to **generating depth embeddings** (`generate_depth_embeddings.py`) for the
+existing RGB+D concat pipeline (§ above), not to a next-embedding-prediction auxiliary
+task — its `eval_pretrained.py` "accuracy" is action accuracy (button prediction), same
+metric as everywhere else in this repo, not an embedding-prediction metric.
+
+**What does still work unconditionally, from this session:**
+`data.require_depth_embedding: false` (new opt-in flag on `CSGOEmbeddingParser`) — a
+file missing its depth embedding falls back to zeros for that file (warns) instead of
+crashing the whole run. See `aim_expert_dino_vitb_rgbd.yaml` and the new
+`train_dino_rgbd_optional_depth.bat`.
+
+## `predict_embedding` — REMOVED from the codebase (decision: not pursuing it)
+
+**Status update, after the v2 section below**: decided not to pursue this task further.
+All code removed — `embedding_predictor.py` deleted, `bc_model.py`/`loss_utils.py`/
+`train_metrics.py` wiring stripped out, `aim_expert_dino_vitb_predict_embedding.yaml`
+and `train_dino_predict_embedding.bat`/`.sh` deleted. `predict_depth` (separate task,
+still in the codebase) reused the same LSTM-hidden-state-branching lesson from this
+work, so the investment wasn't wasted even though this specific task was dropped.
+Existing `training_logs/aim_expert_dino_vitb_predict_embedding_seed_0` (the v1 run)
+was also deleted on request; the v2 fix was written but never actually trained
+against real data before the decision to drop it. The sections below are kept as a
+historical record of what was tried and the lesson learned (branch auxiliary losses
+off a shared/trainable representation, not a frozen one) — not a description of
+anything currently in the repo.
+
+## `predict_embedding` — actually built and trained this time
+
+Unlike `predict_rgb` above, `predict_embedding` got a full second implementation pass
+that stuck: `pixelbc/models/embedding_predictor.py` (`EmbeddingPredictor`, a 3-layer MLP
+predicting `embedding[t+1]` from `embedding[t] + action[t]`, JEPA-style), wired into
+`bc_model.py` (`predict_embedding`/`embedding_loss_weight` config flags, loss + metrics
+logged every `_step()`), `compute_embedding_loss` in `loss_utils.py`, and
+`aim_expert_dino_vitb_predict_embedding.yaml`. Needs no new data loading — reuses the
+embedding sequence already in the batch (`train_from_embeddings=True` only).
+Training scripts: `train_dino_predict_embedding.bat` / `.sh`.
+
+### Live comparison vs. the existing RGB / RGB+D DINO baselines
+
+Ran it against the pre-existing `aim_expert_dino_vitb_seed_0` (RGB DINO) and
+`aim_expert_dino_vitb_rgbd_seed_0` (RGB+D DINO) runs' saved TensorBoard logs. Full
+averages (RGB DINO n=9, RGB+D DINO n=10, predict_embedding n=14 validation checkpoints
+as of this writing):
+
+| Metric | RGB DINO | RGB+D DINO | RGB DINO + predict_embedding |
+|---|---|---|---|
+| `button_ind_balanced_accuracy` | 0.7756 | **0.7839** | 0.7760 |
+| `button_ind_tp_rate` (button recall) | 0.5892 | **0.6077** | 0.5911 |
+| `trigger_accuracy` (shoot, majority-class-dominated) | 0.9543 | **0.9574** | 0.9562 |
+| `trigger_fp_rate` (false-shoot rate, lower=better) | 0.0150 | **0.0112** | 0.0120 |
+| `embedding_cosine_similarity` (aux task's own signal) | n/a | n/a | ~0.884 (learning, not still climbing) |
+
+**Result: no measurable effect either way.** `predict_embedding` tracks RGB DINO within
+noise on every metric checked (balanced-acc, recall, trigger-accuracy, trigger-FP-rate) —
+consistently ~0.8 points behind RGB+D DINO on all of them, same gap RGB DINO has on its
+own. Depth remains the only intervention in this repo that's actually moved the needle;
+the auxiliary next-embedding-prediction task doesn't appear to help the policy learn
+better representations, at least not through this simple MLP-predictor formulation.
+
+### `trigger_recall_epoch` fix (real shoot-recall, not `nan`)
+
+`trigger_tp_rate`/`trigger_balanced_accuracy` have always logged `nan` for all three
+runs — root cause: `get_trigger_metrics` computes TP-rate **per batch**
+(`TP.sum() / target.sum()`), and since "shoot" is only ~4% of frames, many individual
+batches have zero shoot-target frames at all → that batch's ratio is `0/0` → `nan` →
+poisons the whole epoch's Lightning-averaged value even though other batches had real
+positives. Fixed by accumulating TP-count and positive-count across the **entire**
+validation epoch before dividing (`_trigger_epoch_stats` + `on_validation_epoch_start`/
+`_end` hooks in `bc_model.py`), logged as a new metric: `{split}/trigger_recall_epoch`.
+Smoke-tested standalone (correct aggregate, skips only if the whole epoch is genuinely
+positive-free).
+
+**Not yet populated for any run** — editing `bc_model.py` doesn't affect an
+already-running training process (module already imported into that interpreter);
+needs either (a) the training process actually killed and relaunched, or (b) retroactive
+recompute via `pixelbc/validate.py <config> checkpoint=<path/to/last.ckpt> ...` against a
+saved checkpoint (this script spawns a fresh process each time, so it does pick up the
+fix).
+
+**Retroactively recomputed via (b) for all three runs' `last.ckpt`** — real shoot-recall
+numbers, plus a full re-check of every other metric on the same up-to-date checkpoints:
+
+| Metric | RGB DINO | RGB+D DINO | RGB DINO + predict_embedding |
+|---|---|---|---|
+| `button_ind_balanced_accuracy` | 0.7701 | **0.7783** | 0.7779 |
+| `button_ind_tp_rate` (button recall) | 0.5754 | **0.5960** | 0.5937 |
+| `trigger_accuracy` | 0.9552 | **0.9580** | 0.9570 |
+| `trigger_fp_rate` (lower=better) | 0.0134 | **0.0106** | 0.0113 |
+| `trigger_recall_epoch` (real shoot recall) | 0.1756 | **0.1826** | 0.1739 |
+
+Real shoot-recall is low across every model (~17-18%) — confirms fire is the hardest
+action to learn (as `FINDINGS.md`'s "Levers to push past 0.77" section already
+predicted from the ~4% positive rate / `tp_rate=nan` symptom). RGB+D DINO leads on
+**every single metric** checked, including this new one; `predict_embedding` stays
+tied with plain RGB DINO across the board, no metric shows separation. Command used
+(one line per run, swap config + checkpoint path):
+```
+python pixelbc\validate.py pixelbc\configs\csgo\aim_expert_dino_vitb_predict_embedding.yaml checkpoint=training_logs\aim_expert_dino_vitb_predict_embedding_seed_0\models\last.ckpt data.data_path=C:\csgo_data data.train_split_file_path=paper_data_split/csgo_dm_train_files.txt data.validation_split_file_path=paper_data_split/csgo_dm_val_files.txt trainer.accelerator=gpu trainer.devices=1
+```
+**Gotcha hit while running this**: omitting `data.train_split_file_path` silently falls
+back to the config-default `csgo_train_files.txt` (not `csgo_dm_train_files.txt`), which
+has a real UTF-8 BOM on its first line (`ef bb bf` prefix) that `data_split.py`'s
+`get_file_paths_from_split_file` doesn't strip (`path.open("r")`, no `encoding=`) —
+corrupts the first filename and crashes with a confusing `FileNotFoundError`. Always
+pass both `train_split_file_path` and `validation_split_file_path` explicitly.
+
+## `predict_embedding` v2 — rewired to branch off the LSTM hidden state
+
+The v1 result above (no measurable effect vs. plain RGB DINO) had an architectural
+explanation, not just "the idea doesn't work": `EmbeddingPredictor` branched off the raw
+frozen embedding tensor `x`, which has no gradient history in `train_from_embeddings=True`
+mode (loaded straight from `.npz`, not computed by anything differentiable). Its loss
+could only update its own weights — zero mechanism to ever influence `bc_model` (the
+LSTM policy), since the two shared no computation graph. Auxiliary-task learning
+normally works by shaping a *shared* trunk; here the only shared component (DINO) is
+frozen, so v1 was a diagnostic probe at best, never a real auxiliary task.
+
+**Fix**: branch `EmbeddingPredictor` off the LSTM's own hidden state instead (the
+representation between `self.lstm(...)` and `mlp_out`, `lstm_hidden_size`=512-dim,
+already trained by the action losses) — see `pixelbc/models/utils/model_utils.py`'s
+`LSTM.forward(..., return_hidden=False)` (new kwarg, returns `(action_logits, hidden)`
+when True), `pixelbc/models/embedding_predictor.py` (input/target dims now independent:
+512 in, 768/1536 out), and `pixelbc/models/bc_model.py` (`forward(..., return_hidden=False)`
+threads it through in the **same** `self.bc_model(...)` call used for action logits —
+critical, since the LSTM is stateful and a second call would double-advance
+`hidden_state`/`cell_state`; `predict_embedding` now additionally asserts
+`bc_policy.type == "lstm"`, the only policy type that exposes a hidden state this way).
+The *prediction target* is unchanged — still the real next-step DINO embedding — only
+the predictor's *input* moved from the frozen embedding to the shared hidden state.
+
+**Verified before restarting training** (all in this session, not yet re-run against
+real data):
+1. Standalone `LSTM(..., return_hidden=True)` shape check + backward-compat check
+   (`return_hidden=False` default unchanged).
+2. Direct proof the gradient path now exists: ran `embedding_loss.backward()` on a toy
+   batch and confirmed non-zero gradients on `lstm.lstm.weight_ih_l0` and
+   `lstm.mlp_in.model[0].weight` — impossible in v1 by construction.
+3. Full `BCModel(**real_predict_embedding_config)` → `training_step()` → `backward()`
+   smoke test (DINOv2-vitb14 encoder, LSTM 512, real `predict_embedding`/
+   `embedding_loss_weight` config) — ran end-to-end, `embedding_predictor.net[0].in_features
+   == 527` (512 hidden + 15 actions) as expected, LSTM gradients populated.
+
+**Needs a fresh run, not a resume** — `EmbeddingPredictor`'s input dim changed
+(768/1536 → 512), so the old `aim_expert_dino_vitb_predict_embedding_seed_0` checkpoints
+won't load (shape mismatch). `train_dino_predict_embedding.bat`/`.sh` now use
+`run_name=aim_expert_dino_vitb_predict_embedding_v2` (new run dir, old run/checkpoints
+untouched) specifically to avoid `run_train.py`'s auto-resume-from-newest-checkpoint
+picking up the incompatible old `last.ckpt`.
+
+**Open**: re-run and compare `_v2`'s validation trajectory against the v1/RGB-DINO/
+RGB+D-DINO table above — this is the real test of whether the fix changes the outcome,
+not yet done as of this writing.
+
+## `predict_depth` — implemented and verified
+
+New auxiliary task, applying the `predict_embedding` v1→v2 lesson from the start:
+reconstruct the **depth map in image/pixel space** (not embedding space) for the same
+frame, from the LSTM's hidden state (gradient-connected), instead of the frozen
+embedding. Distinct from `depth_embedding` (concatenating a depth *embedding* as extra
+policy input, used by the RGB+D baseline) — this repo's `predict_depth` runs are
+RGB-only encoder, no `depth_embedding`, per explicit instruction not to combine them.
+
+Reuses two existing pieces rather than new code: `RGBDecoder` (`pixelbc/models/
+rgb_decoder.py`) is already generic via `output_channels`, so `output_channels=1`
+gives a depth decoder for free — no new decoder class. And the raw-pixel-concat
+data-loading trick from the reverted `predict_rgb` attempt (concatenate flattened
+raw pixels onto the embedding tensor's tail in `CSGOEmbeddingParser`, so the
+`(x, action_targets)` batch contract never changes) — here loading `frame_i_depth`
+(written by `make_depth.py`) instead of `frame_i_x`, resized to 224×224.
+
+**Design** (plan file: see session transcript / `.claude/plans/reactive-whistling-tower.md`
+if still present): decoder takes the LSTM's hidden state (`return_hidden=True`, the
+same mechanism already built for `predict_embedding` v2) as input, reconstructs the
+*same*-timestep depth map (not next-step, unlike `predict_embedding` — no frame-shift
+needed), `depth_loss` (MSE) added to the total loss via a new `depth_loss_weight`.
+
+**Status: all 4 plan steps complete, verified, ready to train.**
+- `pixelbc/data/data_parsers.py` (`CSGOEmbeddingParser`) — `predict_depth` param,
+  raw-depth loading (`frame_{i}_depth` via `cv2.resize` to 224×224)/flatten/concat in
+  `get_all_data`, wired through `get_data_parser`.
+- `pixelbc/models/utils/loss_utils.py` — `compute_depth_loss` (MSE), same pattern as
+  `compute_embedding_loss`.
+- `pixelbc/models/bc_model.py` — `predict_depth`/`depth_loss_weight` params + assertion
+  (`train_from_embeddings`, `bc_policy.type == "lstm"`, same reasoning as
+  `predict_embedding`); `self.depth_decoder = RGBDecoder(self.bc_model.hidden_size,
+  output_size=224, output_channels=1)` built after `self.bc_model`; `_get_embedding`
+  extended to strip the trailing raw-depth payload before it reaches the LSTM;
+  `_get_depth_target` helper; `_step` now requests `return_hidden=True` whenever
+  *either* `predict_embedding` or `predict_depth` is on (still only one
+  `self.bc_model` call), computes `depth_loss` from `self.depth_decoder(hidden_flat)`
+  vs. the real depth target, logs `{split}/depth_loss`, folds into total loss via
+  `depth_loss_weight`.
+- New config: `aim_expert_dino_vitb_predict_depth.yaml` (RGB-only base, no
+  `depth_embedding` — per instruction not to combine them).
+- New training scripts: `train_dino_predict_depth.bat`/`.sh`.
+- `_save_depth_sample`: saves one real-vs-reconstructed depth frame pair (side by
+  side PNG) per validation epoch to `{tensorboard log_dir}/depth_samples/
+  epoch_NNN.png`, for visual QA of what the decoder is actually reconstructing —
+  not just the scalar `depth_loss`. Guarded to no-op if no logger is attached
+  (e.g. the standalone `BCModel(...)` smoke tests above, which have no `Trainer`).
+
+**Verified** (same style as `predict_embedding` v2):
+1. Standalone `RGBDecoder(512, output_size=224, output_channels=1)` shape/range check
+   — output `(N, 1, 224, 224)`, values in `[0, 1]`.
+2. Full `BCModel(**real_predict_depth_config)` → `training_step()` → `backward()` on a
+   mocked batch (embedding + concatenated raw-depth payload) — ran end-to-end,
+   non-zero gradient confirmed on `self.bc_model.lstm.weight_ih_l0`
+   (`.abs().sum() ≈ 9.54`) — same proof-of-gradient-connection used for
+   `predict_embedding` v2.
+
+**Prerequisite**: requires `make_depth.py` to have already generated `frame_i_depth`
+for every file in the train/val split — no graceful-fallback for missing depth here
+(unlike `require_depth_embedding`); a missing `frame_i_depth` crashes.
+
+**Open**: not yet run against real training data — next step is an actual training run
+and comparing its validation trajectory against the RGB-DINO / RGB+D-DINO /
+`predict_embedding` table above.

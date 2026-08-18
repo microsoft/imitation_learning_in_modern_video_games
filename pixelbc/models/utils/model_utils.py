@@ -105,7 +105,7 @@ class LSTM(nn.Module, BackboneModel):
             self.lstm_num_layers, batch_size, self.hidden_size
         ).to(current_device)
 
-    def forward(self, x, rollout=False):
+    def forward(self, x, rollout=False, return_hidden=False):
         verify_input_shape(self.input_size, x.shape)
         batch_size, seq_len = x.shape[:2]
         x = x.reshape(batch_size, seq_len, self.input_size)
@@ -121,9 +121,10 @@ class LSTM(nn.Module, BackboneModel):
             x, (self.hidden_state, self.cell_state)
         )
         x = F.relu(x)
+        hidden = x
         x = self.mlp_out(x)
 
-        return x
+        return (x, hidden) if return_hidden else x
 
 
 def verify_input_shape(input_size, input_shape):

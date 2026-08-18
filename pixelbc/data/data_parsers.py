@@ -3,6 +3,7 @@ import warnings
 from abc import ABC, abstractmethod
 from collections import deque
 
+import cv2
 import decord
 import h5py
 import numpy as np
@@ -18,6 +19,8 @@ from pixelbc.data.utils import (get_embedding_file,
                                 get_pretrained_encoder_dirname)
 
 EMBEDDING_KEY = "embedding"
+# predict_depth target resolution -- must match RGBDecoder's output_size in bc_model.py
+PREDICT_DEPTH_SIZE = 224
 
 
 class DataParser(ABC):
@@ -430,6 +433,7 @@ class CSGOEmbeddingParser(CSGOImageParser):
         decord_num_workers=1,
         depth_encoder_dirname=None,
         require_depth_embedding=True,
+        predict_depth=False,
     ):
         super().__init__(
             preprocess_fn,
@@ -448,6 +452,12 @@ class CSGOEmbeddingParser(CSGOImageParser):
         # falls back to RGB-only for that file (warns) instead of crashing.
         # Default True preserves the old strict (assert-and-crash) behaviour.
         self.require_depth_embedding = require_depth_embedding
+        # predict_depth (auxiliary depth-in-image-space reconstruction task, see
+        # BCModel): also load the raw depth frame (frame_i_depth, from make_depth.py)
+        # resized to PREDICT_DEPTH_SIZE, flattened, and concat it onto the end of the
+        # embedding's feature axis -- same trick as depth_embedding/predict_rgb before
+        # it, so the (embedding, actions) batch contract never has to change.
+        self.predict_depth = predict_depth
 
     def _load_depth_embeddings_or_fallback(self, rgb_embeddings, action_filename):
         """Load the depth embedding for this file, or fall back to zeros (same shape
@@ -473,11 +483,17 @@ class CSGOEmbeddingParser(CSGOImageParser):
         """
         all_indices = range(CSGOImageParser.NUM_STEPS_PER_FILE)
         actions = []
+        depth_frames = [] if self.predict_depth else None
 
         with h5py.File(action_filename, "r") as f:
             action_keys = [self._get_action_key(idx) for idx in all_indices]
             for action_key in action_keys:
                 actions.append(self._preprocess_action(f[action_key][:]))
+            if self.predict_depth:
+                for idx in all_indices:
+                    depth = f[f"frame_{idx}_depth"][:].astype(np.uint8)
+                    depth = cv2.resize(depth, (PREDICT_DEPTH_SIZE, PREDICT_DEPTH_SIZE))
+                    depth_frames.append(depth)
         actions = np.array(actions)
 
         embedding_filename = get_embedding_file(self.encoder_dirname, action_filename)
@@ -485,6 +501,10 @@ class CSGOEmbeddingParser(CSGOImageParser):
         if self.depth_encoder_dirname is not None:
             depth_embeddings = self._load_depth_embeddings_or_fallback(embeddings, action_filename)
             embeddings = np.concatenate([embeddings, depth_embeddings], axis=-1)
+
+        if self.predict_depth:
+            raw_depth_flat = np.array(depth_frames).astype(np.float32).reshape(len(depth_frames), -1)
+            embeddings = np.concatenate([embeddings, raw_depth_flat], axis=-1)
 
         return torch.from_numpy(embeddings).to(dtype=DataParser.EMBEDDING_TYPE), torch.from_numpy(actions).to(dtype=DataParser.ACTION_TYPE)
 
@@ -562,6 +582,7 @@ def get_data_parser(
                 decord_num_workers,
                 depth_encoder_dirname=depth_encoder_dirname,
                 require_depth_embedding=kwargs.get("require_depth_embedding", True),
+                predict_depth=kwargs.get("predict_depth", False),
             )
         return CSGOImageParser(
             preprocess_fn,

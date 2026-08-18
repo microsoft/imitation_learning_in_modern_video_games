@@ -31,3 +31,11 @@ def compute_button_loss(
 ) -> Tensor:
     button_loss = F.binary_cross_entropy_with_logits(button_pred, button_target)
     return button_loss
+
+
+def compute_depth_loss(
+    depth_pred: Tensor,
+    depth_target: Tensor,
+) -> Tensor:
+    depth_loss = F.mse_loss(depth_pred, depth_target)
+    return depth_loss

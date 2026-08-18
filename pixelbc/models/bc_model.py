@@ -1,18 +1,26 @@
+import os
 import warnings
 
+import cv2
 import lightning.pytorch as pl
+import numpy as np
 import torch
 from lightning.pytorch.utilities import grad_norm
 from torch.distributions import Bernoulli, Categorical
 
 from pixelbc.models.encoders import get_encoder
+from pixelbc.models.rgb_decoder import RGBDecoder
 from pixelbc.models.utils import get_model
 from pixelbc.models.utils.loss_utils import (compute_button_loss,
+                                             compute_depth_loss,
                                              compute_joystick_loss,
                                              compute_trigger_loss)
 from pixelbc.models.utils.train_metrics import (
     get_button_metrics, get_continuous_joystick_metrics,
     get_discrete_joystick_metrics, get_trigger_metrics)
+
+# predict_depth target resolution -- must match PREDICT_DEPTH_SIZE in data_parsers.py
+PREDICT_DEPTH_SIZE = 224
 
 
 class BCModel(pl.LightningModule):
@@ -33,6 +41,8 @@ class BCModel(pl.LightningModule):
         button_loss_weight,
         train_from_embeddings,
         lr_warmup_steps,
+        predict_depth=False,
+        depth_loss_weight=0.0,
         **kwargs,
     ):
         super().__init__()
@@ -53,6 +63,24 @@ class BCModel(pl.LightningModule):
         self.button_loss_weight = button_loss_weight
         self.train_from_embeddings = train_from_embeddings
         self.lr_warmup_steps = lr_warmup_steps
+        self.predict_depth = predict_depth
+        self.depth_loss_weight = depth_loss_weight
+
+        # Epoch-aggregated trigger TP/positive counts, for a recall that isn't
+        # poisoned by per-batch 0/0 (trigger/"shoot" positives are ~4% of frames,
+        # so many individual batches have zero shoot-target frames -> that batch's
+        # tp_rate is nan -> Lightning's per-batch-averaged self.log() turns the
+        # whole epoch nan even though other batches had real positives). Summing
+        # counts across the full epoch before dividing avoids that.
+        self._trigger_epoch_stats = {}
+
+        if self.predict_depth:
+            # Reconstructs the SAME-timestep depth map from the LSTM's hidden state
+            # at t -- see rgb_decoder.py (reused generically via output_channels=1) and
+            # data_parsers.py's CSGOEmbeddingParser(predict_depth=True) for where the
+            # raw depth-pixel target comes from.
+            assert self.train_from_embeddings, "predict_depth requires train_from_embeddings=True."
+            assert bc_policy.type == "lstm", "predict_depth currently requires bc_policy.type == 'lstm' (needs a hidden state to branch off)."
 
         if self.bc_policy_config.type == "gpt":
             assert self.lr_warmup_steps > 0, "GPT policy requires LR warmup to be enabled."
@@ -78,6 +106,13 @@ class BCModel(pl.LightningModule):
         self.num_button_logits = self.num_button_actions
         self.num_logits = self.num_joystick_logits + self.num_trigger_logits + self.num_button_logits
         self.bc_model = get_model(self.image_encoding_dim, self.sequence_length, self.num_logits, self.bc_policy_config)
+
+        # auxiliary depth-in-image-space reconstruction head. RGBDecoder is generic
+        # (output_channels) -- output_channels=1 gives a depth decoder for free, no
+        # new decoder class. Input is the LSTM's hidden state, not the frozen
+        # embedding, so this loss's gradient is connected to the policy's weights.
+        if self.predict_depth:
+            self.depth_decoder = RGBDecoder(self.bc_model.hidden_size, output_size=PREDICT_DEPTH_SIZE, output_channels=1)
 
         # save extra hyperparameters
         self.hparams.image_encoding_dim = self.image_encoding_dim
@@ -129,10 +164,40 @@ class BCModel(pl.LightningModule):
         Reshape input to have batch size as first dimension and then input dimensions and embed if image is given.
         :param x: input image or embedding (if train_from_embeddings is True)
             (batch_size, sequence_length, channels, height, width) if image is given
-            (batch_size, sequence_length, embedding_dim) if embedding is given
-        :return: image embedding
+            (batch_size, sequence_length, embedding_dim [+ trailing raw-depth payload
+            if predict_depth]) if embedding is given
+        :return: image embedding, with any trailing raw-depth payload (predict_depth)
+            sliced off -- the policy never sees it, only _get_depth_target does
         """
-        return x if self.train_from_embeddings else self.image_encoder(x)
+        if not self.train_from_embeddings:
+            return self.image_encoder(x)
+        if self.predict_depth:
+            return x[..., : self.image_encoding_dim]
+        return x
+
+    def _get_depth_target(self, x):
+        """
+        Ground-truth depth map for the auxiliary reconstruction loss, in [0, 1].
+        :param x: same batch input passed to _get_embedding -- the raw depth payload
+            is concatenated onto the tail of the embedding's feature axis by
+            CSGOEmbeddingParser(predict_depth=True).
+        """
+        raw_depth = x[..., self.image_encoding_dim :]
+        return raw_depth.reshape(-1, 1, PREDICT_DEPTH_SIZE, PREDICT_DEPTH_SIZE).float().div(255)
+
+    def _save_depth_sample(self, depth_pred, depth_target):
+        """Save one real-vs-reconstructed depth frame pair (side by side, PNG) per
+        validation epoch, for visual QA of the predict_depth auxiliary task.
+        """
+        if self.logger is None or not hasattr(self.logger, "log_dir") or self.logger.log_dir is None:
+            return
+        out_dir = os.path.join(self.logger.log_dir, "depth_samples")
+        os.makedirs(out_dir, exist_ok=True)
+        target_img = (depth_target[0, 0].detach().cpu().numpy() * 255).clip(0, 255).astype(np.uint8)
+        pred_img = (depth_pred[0, 0].detach().cpu().numpy() * 255).clip(0, 255).astype(np.uint8)
+        divider = np.full((target_img.shape[0], 4), 255, dtype=np.uint8)
+        side_by_side = np.concatenate([target_img, divider, pred_img], axis=1)
+        cv2.imwrite(os.path.join(out_dir, f"epoch_{self.current_epoch:03d}.png"), side_by_side)
 
     def _step(self, batch, batch_idx, log_prefix="", log_sync_dist=False):
         x, action_targets = batch
@@ -140,8 +205,15 @@ class BCModel(pl.LightningModule):
         # split action targets into joystick, trigger, and button targets
         joystick_targets, trigger_targets, button_targets = self._split_action_targets(action_targets)
 
-        # compute action logits
-        joystick_logits, trigger_logits, button_logits = self.forward(x, rollout=False)
+        # compute action logits (and the policy's hidden state too, in one pass, if
+        # predict_depth needs it -- must NOT call self.bc_model a second time, since
+        # the LSTM is stateful and a duplicate call would double-advance it)
+        if self.predict_depth:
+            (joystick_logits, trigger_logits, button_logits), hidden_repr = self.forward(
+                x, rollout=False, return_hidden=True
+            )
+        else:
+            joystick_logits, trigger_logits, button_logits = self.forward(x, rollout=False)
 
         # compute and log joystick loss and metrics
         joystick_loss = compute_joystick_loss(joystick_logits, joystick_targets, self.discretise_joystick)
@@ -172,6 +244,14 @@ class BCModel(pl.LightningModule):
                 for k, v in trigger_metrics.items():
                     self.log(f"{log_prefix}/{k}", v, sync_dist=log_sync_dist)
 
+                # epoch-aggregated trigger recall (see __init__ comment on why
+                # this needs whole-epoch counts instead of per-batch averaging)
+                stats = self._trigger_epoch_stats.setdefault(log_prefix, {"tp": 0.0, "pos": 0.0})
+                trigger_pred = torch.sigmoid(trigger_logits_nonan) > 0.5
+                trigger_target_bool = trigger_targets_nonan.bool()
+                stats["tp"] += (trigger_pred & trigger_target_bool).sum().item()
+                stats["pos"] += trigger_target_bool.sum().item()
+
         else:
             trigger_loss = 0.0
 
@@ -186,6 +266,22 @@ class BCModel(pl.LightningModule):
                 self.log(f"{log_prefix}/{k}", v, sync_dist=log_sync_dist)
 
         loss = self.joystick_loss_weight * joystick_loss + self.button_loss_weight * (trigger_loss + button_loss)
+
+        # auxiliary depth-in-image-space reconstruction loss: reconstruct the SAME
+        # timestep's depth map from the policy's hidden state at that timestep.
+        if self.predict_depth:
+            hidden_flat = hidden_repr.reshape(-1, self.bc_model.hidden_size)
+            depth_pred = self.depth_decoder(hidden_flat)
+            depth_target = self._get_depth_target(x)
+            depth_loss = compute_depth_loss(depth_pred, depth_target)
+            self.log(f"{log_prefix}/depth_loss", depth_loss, sync_dist=log_sync_dist)
+            loss = loss + self.depth_loss_weight * depth_loss
+
+            # one sample pair per validation epoch, for visual QA (real depth vs.
+            # reconstructed depth, side by side)
+            if log_prefix == "val" and batch_idx == 0:
+                self._save_depth_sample(depth_pred, depth_target)
+
         self.log(f"{log_prefix}/loss", loss, sync_dist=log_sync_dist)
         return loss
 
@@ -195,18 +291,23 @@ class BCModel(pl.LightningModule):
         """
         self.bc_model.init_for_sequence(batch_size=1)
 
-    def forward(self, x, rollout=False):
+    def forward(self, x, rollout=False, return_hidden=False):
         """
         Forward pass through the BC model.
         :param x: input image or embedding (if train_from_embeddings is True)
             (batch_size, sequence_length, channels, height, width) if image is given
             (batch_size, sequence_length, embedding_dim) if embedding is given
         :param rollout: whether forward pass is for rollout
+        :param return_hidden: if True (training only), also return the policy's
+            hidden state alongside the action logits -- used by _step to feed
+            predict_depth without a second, redundant (and, since the LSTM is
+            stateful, incorrect) call into self.bc_model.
         :param action_selection: whether to compute no actions, sample from action distributions ('stochastic'), or take greedy actions
             ('deterministic')
-        :return: joystick logits, trigger logits, and button logits
+        :return: joystick logits, trigger logits, and button logits (plus hidden state if return_hidden)
         """
         img_enc = self._get_embedding(x)
+        hidden = None
 
         if rollout:
             action_logits = self.bc_model(img_enc, rollout=True)
@@ -215,14 +316,18 @@ class BCModel(pl.LightningModule):
             assert img_enc.dim() == 3, f"Input to model must be of shape (batch_size, sequence_length, embedding_dim) but is {img_enc.shape}"
             batch_size = img_enc.shape[0]
             self.bc_model.init_for_sequence(batch_size=batch_size)
-            action_logits = self.bc_model(img_enc, rollout=False)
+            if return_hidden:
+                action_logits, hidden = self.bc_model(img_enc, rollout=False, return_hidden=True)
+            else:
+                action_logits = self.bc_model(img_enc, rollout=False)
 
         if torch.isnan(img_enc).any():
             warnings.warn("NaNs in image embedding during BCModel forward pass.")
         if torch.isnan(action_logits).any():
             warnings.warn("NaNs in action logits during BCModel forward pass.")
 
-        return self._split_action_logits(action_logits)
+        split_logits = self._split_action_logits(action_logits)
+        return (split_logits, hidden) if return_hidden else split_logits
 
     def act(self, x, joystick_mode="stochastic", trigger_mode="stochastic", button_mode="stochastic"):
         """
@@ -298,6 +403,34 @@ class BCModel(pl.LightningModule):
 
     def test_step(self, batch, batch_idx):
         return self._step(batch, batch_idx, "test", True)
+
+    def _reset_trigger_epoch_stats(self, log_prefix):
+        self._trigger_epoch_stats[log_prefix] = {"tp": 0.0, "pos": 0.0}
+
+    def _log_trigger_epoch_recall(self, log_prefix):
+        stats = self._trigger_epoch_stats.get(log_prefix)
+        if stats is None or stats["pos"] == 0:
+            return  # no trigger positives seen this epoch -- genuinely undefined, skip rather than log nan
+        recall = stats["tp"] / stats["pos"]
+        self.log(f"{log_prefix}/trigger_recall_epoch", recall, sync_dist=(log_prefix != "train"))
+
+    def on_train_epoch_start(self):
+        self._reset_trigger_epoch_stats("train")
+
+    def on_train_epoch_end(self):
+        self._log_trigger_epoch_recall("train")
+
+    def on_validation_epoch_start(self):
+        self._reset_trigger_epoch_stats("val")
+
+    def on_validation_epoch_end(self):
+        self._log_trigger_epoch_recall("val")
+
+    def on_test_epoch_start(self):
+        self._reset_trigger_epoch_stats("test")
+
+    def on_test_epoch_end(self):
+        self._log_trigger_epoch_recall("test")
 
     def configure_optimizers(self):
         optimiser = torch.optim.AdamW(self.parameters(), lr=self.learning_rate)
