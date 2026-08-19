@@ -20,7 +20,7 @@ from pixelbc.models.utils.train_metrics import (
     get_discrete_joystick_metrics, get_trigger_metrics)
 
 # predict_depth target resolution -- must match PREDICT_DEPTH_SIZE in data_parsers.py
-PREDICT_DEPTH_SIZE = 64
+PREDICT_DEPTH_SIZE = 128
 
 
 class BCModel(pl.LightningModule):
@@ -75,12 +75,14 @@ class BCModel(pl.LightningModule):
         self._trigger_epoch_stats = {}
 
         if self.predict_depth:
-            # Reconstructs the SAME-timestep depth map from the LSTM's hidden state
+            # Reconstructs the SAME-timestep depth map from the policy's hidden state
             # at t -- see rgb_decoder.py (reused generically via output_channels=1) and
             # data_parsers.py's CSGOEmbeddingParser(predict_depth=True) for where the
-            # raw depth-pixel target comes from.
+            # raw depth-pixel target comes from. lstm/gpt both expose a hidden_size
+            # attribute + return_hidden kwarg (model_utils.py / pico_gpt.py); mlp has
+            # no equivalent seam.
             assert self.train_from_embeddings, "predict_depth requires train_from_embeddings=True."
-            assert bc_policy.type == "lstm", "predict_depth currently requires bc_policy.type == 'lstm' (needs a hidden state to branch off)."
+            assert bc_policy.type in ("lstm", "gpt"), "predict_depth currently requires bc_policy.type in ('lstm', 'gpt') (needs a hidden state to branch off)."
 
         if self.bc_policy_config.type == "gpt":
             assert self.lr_warmup_steps > 0, "GPT policy requires LR warmup to be enabled."

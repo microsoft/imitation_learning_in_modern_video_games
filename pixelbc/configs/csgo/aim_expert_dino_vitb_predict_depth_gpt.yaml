@@ -1,0 +1,36 @@
+seed: 0
+
+data:
+  image_height: 224
+  image_width: 224
+  # predict_depth (must live under `data:`, not just `model:`) because
+  # CSGOEmbeddingParser needs it to know to load+concat the raw depth frame
+  # (frame_i_depth, from make_depth.py) onto the embedding. _check_and_update_config
+  # copies every data.* key into model.* too, so BCModel still sees it as normal.
+  # Requires make_depth.py to have already been run on the train/val split files.
+  predict_depth: true
+
+
+model:
+  encoder: null
+  pretrained_encoder:
+    family: dino
+    name: dinov2_vitb14
+  bc_policy:
+    type: gpt # GPT variant of predict_depth -- see the lstm config for the default
+    gpt_num_layers: 4
+    gpt_num_heads: 8
+    gpt_embedding_dim: 512
+    gpt_use_positional_encoding: False
+    gpt_bias: True
+    gpt_is_causal: True
+  learning_rate: 3e-4
+  lr_warmup_steps: 2000 # GPT policy requires warmup > 0 (BCModel.__init__ asserts this)
+  joystick_loss_weight: 1.0
+  button_loss_weight: 1.0
+  train_from_embeddings: True
+  # predict_depth: reconstructs the depth map in image space from the GPT policy's
+  # hidden state (gpt_out, pre-mlp_out projection) at the same timestep -- reuses
+  # RGBDecoder (output_channels=1) branched off hidden_repr, so this loss is
+  # gradient-connected to the policy. Logged to TensorBoard as depth_loss.
+  depth_loss_weight: 0.1

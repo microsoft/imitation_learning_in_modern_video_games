@@ -20,7 +20,7 @@ from pixelbc.data.utils import (get_embedding_file,
 
 EMBEDDING_KEY = "embedding"
 # predict_depth target resolution -- must match RGBDecoder's output_size in bc_model.py
-PREDICT_DEPTH_SIZE = 64
+PREDICT_DEPTH_SIZE = 128
 
 
 class DataParser(ABC):

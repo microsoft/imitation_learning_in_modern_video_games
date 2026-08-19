@@ -212,6 +212,9 @@ class GPTTransformer(nn.Module, BackboneModel):
         self.output_size = output_size
         self.sequence_length = sequence_length
         self.use_positional_encoding = use_positional_encoding
+        # same attribute name as LSTM.hidden_size, so bc_model.py's predict_depth
+        # wiring (self.bc_model.hidden_size) works identically for either policy type.
+        self.hidden_size = embedding_dim
 
         self.mlp_in = MLP(input_size, embedding_dim, num_layers=1)
         self.mlp_out = MLP(embedding_dim, output_size, num_layers=1)
@@ -231,7 +234,7 @@ class GPTTransformer(nn.Module, BackboneModel):
     def init_for_sequence(self, batch_size):
         self.gpt_inputs.clear()
 
-    def forward(self, x, rollout=False):
+    def forward(self, x, rollout=False, return_hidden=False):
         verify_input_shape(self.input_size, x.shape)
         batch_size, seq_len, input_size = x.shape
         assert input_size == self.input_size, f"Input shape {x.shape} does not match input size {self.input_size}"
@@ -255,4 +258,5 @@ class GPTTransformer(nn.Module, BackboneModel):
             # run entire (batch_size, seq_len, embedding_dim) sequence through transformer
             gpt_out = self.gpt(x)
             # project all embeddings to output size for sequence
-            return self.mlp_out(gpt_out)
+            out = self.mlp_out(gpt_out)
+            return (out, gpt_out) if return_hidden else out
